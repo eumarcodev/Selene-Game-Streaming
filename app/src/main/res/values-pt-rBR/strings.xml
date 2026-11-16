@@ -271,7 +271,7 @@
     <string name="pw_overlay_lite_decode">dec %1$.1f ms</string>
     <string name="pw_overlay_lite_loss">perda %1$.1f%%</string>
     <string name="pw_overlay_lite_fps">%1$.0f FPS</string>
-    <string name="pw_overlay_lite_audio">áudio -%1$d</string>
+    <string name="pw_overlay_lite_audio">áudio %1$d perdidos</string>
     <string name="pw_overlay_versions">Selene %1$s / Helios %2$s</string>
     <string name="pw_overlay_unknown_host">desconhecido</string>
     <string name="pw_event_started">Transmissão iniciada</string>
