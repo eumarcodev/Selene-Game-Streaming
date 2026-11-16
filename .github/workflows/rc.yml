@@ -1,0 +1,113 @@
+name: Release candidate
+
+# Every push to release/X.Y or hotfix/X.Y.Z builds a release candidate and publishes it as a pre-release.
+#   release/1.4   -> v1.4.0-rc.1, v1.4.0-rc.2, ...
+#   hotfix/1.3.1  -> v1.3.1-rc.1, v1.3.1-rc.2, ...
+# The stable release is a separate step: a tag vX.Y.Z on master (stable.yml).
+on:
+  push:
+    branches:
+      - "release/**"
+      - "hotfix/**"
+  workflow_dispatch:
+
+concurrency:
+  group: rc-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      sha: ${{ steps.plan.outputs.sha }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - name: Checkout (full history and tags)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Plan
+        id: plan
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          sha=$(git rev-parse HEAD)
+          if [[ "${BRANCH}" =~ ^release/([0-9]+\.[0-9]+)$ ]]; then
+            base="${BASH_REMATCH[1]}.0"
+          elif [[ "${BRANCH}" =~ ^hotfix/([0-9]+\.[0-9]+\.([0-9]+))$ ]]; then
+            base="${BASH_REMATCH[1]}"
+            [[ "${BASH_REMATCH[2]}" -gt 0 ]] || fail "Hotfix patch must be greater than 0 (got '${BRANCH}')"
+          else
+            fail "Branch '${BRANCH}' must look like release/X.Y or hotfix/X.Y.Z"
+          fi
+
+          build=true
+          reason="new release candidate"
+          last=$( (git tag -l "v${base}-rc.*" || true) | sed -E 's/.*-rc\.//' | sort -n | tail -1)
+          n=$((${last:-0} + 1))
+
+          if git rev-parse -q --verify "refs/tags/v${base}" > /dev/null; then
+            build=false
+            reason="v${base} is already released"
+          elif [[ -n "${last}" && "$(git rev-list -n1 "v${base}-rc.${last}")" == "${sha}" ]]; then
+            build=false
+            reason="v${base}-rc.${last} already points at this commit"
+          fi
+
+          version="${base}-rc.${n}"
+          {
+            echo "build=${build}"
+            echo "sha=${sha}"
+            echo "version=${version}"
+            echo "tag=v${version}"
+          } >> "$GITHUB_OUTPUT"
+          echo "RC v${version} at ${sha}: build=${build} (${reason})" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      ref: ${{ needs.prepare.outputs.sha }}
+      sign: true
+
+  publish:
+    name: Publish pre-release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: selene-android
+          path: dist
+
+      - name: Create pre-release
+        run: |
+          set -euo pipefail
+          gh release create "${TAG}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${SHA}" \
+            --title "Selene ${TAG}" \
+            --prerelease \
+            --latest=false \
+            --generate-notes
