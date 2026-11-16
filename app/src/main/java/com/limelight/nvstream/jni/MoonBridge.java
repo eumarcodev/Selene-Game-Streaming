@@ -132,6 +132,18 @@ public class MoonBridge {
     // Version of the host (Helios) reported by /serverinfo, null for other hosts. Shown by the overlay.
     public static volatile String hostVersion;
 
+    // PyroWave preferences asked of the host (0 = let the host decide / no cap), shown in the overlay
+    public static volatile int pyroWavePacketSizePref;
+    public static volatile int pyroWaveMaxFrameKbPref;
+
+    /** Sets what the client asks of a Helios host for PyroWave streams. Call before the connection starts. */
+    public static void setPyroWavePrefs(int packetSize, int maxFrameKb) {
+        pyroWavePacketSizePref = packetSize;
+        pyroWaveMaxFrameKbPref = maxFrameKb;
+        setPyroWavePrefsNative(packetSize, maxFrameKb);
+    }
+    private static native void setPyroWavePrefsNative(int packetSize, int maxFrameKb);
+
     // Times the Android audio output ran dry since the stream started (0 when not known)
     public static int getAudioUnderruns() {
         AudioRenderer renderer = audioRenderer;

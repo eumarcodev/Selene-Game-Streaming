@@ -243,6 +243,11 @@ Java_com_limelight_nvstream_jni_MoonBridge_getStreamStats(JNIEnv *env, jclass cl
     return result;
 }
 
+JNIEXPORT void JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_setPyroWavePrefsNative(JNIEnv *env, jclass clazz, jint packetSize, jint maxFrameKb) {
+    LiSetPyroWavePrefs(packetSize, maxFrameKb);
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_getLaunchUrlQueryParameters(JNIEnv *env, jclass clazz) {
     return (*env)->NewStringUTF(env, LiGetLaunchUrlQueryParameters());

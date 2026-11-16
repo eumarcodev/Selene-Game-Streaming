@@ -109,6 +109,13 @@ public class PyroWaveOverlayFormatter {
             append(sb, context.getString(R.string.pw_overlay_audio, net.audioLost, net.audioRecovered, net.audioUnrecoverable, net.audioUnderruns), audioColor);
             sb.append('\n');
         }
+        if (MoonBridge.pyroWavePacketSizePref > 0 || MoonBridge.pyroWaveMaxFrameKbPref > 0) {
+            String packet = MoonBridge.pyroWavePacketSizePref > 0 ? MoonBridge.pyroWavePacketSizePref + " B"
+                    : context.getString(R.string.pw_overlay_pref_auto);
+            String frame = MoonBridge.pyroWaveMaxFrameKbPref > 0 ? MoonBridge.pyroWaveMaxFrameKbPref + " KB"
+                    : context.getString(R.string.pw_overlay_pref_nolimit);
+            sb.append(context.getString(R.string.pw_overlay_requested, packet, frame)).append('\n');
+        }
         String wifi = wifiText();
         if (wifi != null) {
             sb.append(wifi).append('\n');

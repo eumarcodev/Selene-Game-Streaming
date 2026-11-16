@@ -226,6 +226,15 @@
     <string name="title_pyrowave_skip_age">Idade de descarte</string>
     <string name="summary_pyrowave_skip_age">Usada na política personalizada: um quadro mais velho que isso é descartado.</string>
     <string name="suffix_seekbar_ms">ms</string>
+    <string name="title_pyrowave_packet_size">Tamanho do pacote</string>
+    <string name="summary_pyrowave_packet_size">Maior pacote PyroWave que o host deve enviar. Pacotes menores podem ajudar em redes que descartam datagramas grandes. O host pode usar um valor menor que o pedido. Exige um host Helios.</string>
+    <string name="title_pyrowave_max_frame">Tamanho máximo do quadro</string>
+    <string name="summary_pyrowave_max_frame">Limite do tamanho de um quadro, que reduz o pico de banda ao custo de qualidade em cenas movimentadas. O host pode usar um valor maior que o pedido. Exige um host Helios.</string>
+    <string name="pyrowave_pref_auto">Deixar o host decidir (padrão)</string>
+    <string name="pyrowave_pref_nolimit">Sem limite (padrão)</string>
+    <string name="pw_overlay_requested">Pedido ao host: pacote %1$s, quadro máx %2$s</string>
+    <string name="pw_overlay_pref_auto">auto</string>
+    <string name="pw_overlay_pref_nolimit">sem limite</string>
     <string name="title_enable_pyrowave">PyroWave (Experimental)</string>
     <string name="summary_enable_pyrowave">Codec de baixa latência para conexões cabeadas ou Wi-Fi forte. Exige muita banda (cerca de 200 Mbps ou mais) e um host Helios com suporte a PyroWave. Volta aos codecs normais quando indisponível.</string>
     <string name="summary_pyrowave_unsupported">Este dispositivo não suporta PyroWave: %1$s.</string>
@@ -271,7 +280,7 @@
     <string name="pw_overlay_host">Codificação no host: %1$.1f ms</string>
     <string name="pw_overlay_speed">Velocidade: %1$.1f Mbit/s</string>
     <string name="pw_overlay_frame_size">Quadro: %1$d KB médio, %2$d KB máx.</string>
-    <string name="pw_overlay_loss">Perda: quadros %1$.1f%%, pacotes %2$.1f%%</string>
+    <string name="pw_overlay_loss">Perda: quadros incompletos %1$.1f%%, pacotes %2$.1f%%</string>
     <string name="pw_overlay_rtt">Rede: %1$d ms (variação %2$d ms)</string>
     <string name="pw_overlay_audio">Áudio: perdidos %1$d, recuperados %2$d, desistiu %3$d, falhas de buffer %4$d</string>
     <string name="pw_overlay_wifi">Wi-Fi: %1$d Mbit/s, %2$d dBm</string>
