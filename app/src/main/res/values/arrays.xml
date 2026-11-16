@@ -30,6 +30,37 @@
         <item>custom</item>
     </string-array>
 
+    <string-array name="pyrowave_packet_size_names">
+        <item>@string/pyrowave_pref_auto</item>
+        <item>1200 B</item>
+        <item>1000 B</item>
+        <item>800 B</item>
+        <item>600 B</item>
+    </string-array>
+    <string-array name="pyrowave_packet_size_values">
+        <item>0</item>
+        <item>1200</item>
+        <item>1000</item>
+        <item>800</item>
+        <item>600</item>
+    </string-array>
+    <string-array name="pyrowave_max_frame_names">
+        <item>@string/pyrowave_pref_nolimit</item>
+        <item>64 KB</item>
+        <item>128 KB</item>
+        <item>256 KB</item>
+        <item>512 KB</item>
+        <item>1024 KB</item>
+    </string-array>
+    <string-array name="pyrowave_max_frame_values">
+        <item>0</item>
+        <item>64</item>
+        <item>128</item>
+        <item>256</item>
+        <item>512</item>
+        <item>1024</item>
+    </string-array>
+
     <string-array name="fps_names">
         <item>@string/fps_30</item>
         <item>@string/fps_60</item>

@@ -744,6 +744,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (prefConfig.enablePyroWave) {
             supportedVideoFormats |= MoonBridge.VIDEO_FORMAT_PYROWAVE;
         }
+        MoonBridge.setPyroWavePrefs(prefConfig.pyroWavePacketSize, prefConfig.pyroWaveMaxFrameKb);
         pyroWaveRenderer = new PyroWaveDecoderRenderer(this, this, prefConfig.enablePerfOverlayLite, prefConfig.bitrate,
                 prefConfig.pyroWaveLatencyPolicy, prefConfig.pyroWaveSkipAgeMs);
         videoRenderer = new FormatSwitchingRenderer(decoderRenderer, pyroWaveRenderer);
