@@ -65,7 +65,7 @@ branch (bug fixes) publishes the next RC.
    git push origin v1.4.0
    ```
 3. `stable.yml` checks that the tag is on `master`, builds, publishes the release as *latest*, and opens PRs from
-   `master` to `develop` (and to open `release/*` branches). Merge them so `develop` sees the new tag.
+   `master` to `develop`. Merge them so `develop` sees the new tag.
 
 ### Hotfix
 
