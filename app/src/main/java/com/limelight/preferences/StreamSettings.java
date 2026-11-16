@@ -629,6 +629,18 @@ public class StreamSettings extends AppCompatActivity {
                 }
             });
 
+            // PyroWave needs Vulkan 1.1 with compute: disable the toggle and say why when it is missing
+            CheckBoxPreference pyroWavePref = findPreference("checkbox_enable_pyrowave");
+            if (pyroWavePref != null) {
+                String reason = com.eumarcodev.selene.pyrowave.PyroWaveSupport.getUnsupportedReason(getActivity());
+                if (reason != null) {
+                    LimeLog.info("Disabling PyroWave toggle: " + reason);
+                    pyroWavePref.setEnabled(false);
+                    pyroWavePref.setChecked(false);
+                    pyroWavePref.setSummary(getString(R.string.summary_pyrowave_unsupported, reason));
+                }
+            }
+
             // Remove HDR preference for devices below Nougat
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                 LimeLog.info("Excluding HDR toggle based on OS");
