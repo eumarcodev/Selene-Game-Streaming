@@ -1,5 +1,6 @@
 package com.limelight.binding.video;
 
+import android.os.SystemClock;
 import android.view.Surface;
 
 import com.eumarcodev.selene.pyrowave.PyroWaveNative;
@@ -12,10 +13,13 @@ import com.limelight.nvstream.av.video.VideoDecoderRenderer;
 public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     public static final int DR_OK = 0;
     public static final int DR_NEED_IDR = -1;
+    // A frame older than this is skipped, whatever the decode time
+    private static final long MIN_SKIP_AGE_MS = 30;
 
     private Surface surface;
     private int width, height;
     private long handle;
+    private double averageDecodeMs = 10;
 
     public void setRenderTarget(Surface surface) {
         this.surface = surface;
@@ -58,7 +62,16 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         }
         // A bad or incomplete frame is simply skipped: every PyroWave frame stands on its own,
         // so there is never a reason to ask the host for an IDR frame.
+        //
+        // The decoder works on the GPU and blocks for about a frame. When it is slower than the host
+        // sends frames, the ones that already waited too long are skipped so the picture stays current
+        // instead of falling further behind. This is safe because every frame is intra-only.
+        long start = SystemClock.uptimeMillis();
+        if (start - enqueueTimeMs > Math.max(MIN_SKIP_AGE_MS, 2 * (long) averageDecodeMs)) {
+            return DR_OK;
+        }
         PyroWaveNative.nativeSubmitFrame(h, decodeUnitData, decodeUnitLength);
+        averageDecodeMs += (SystemClock.uptimeMillis() - start - averageDecodeMs) * 0.1;
         return DR_OK;
     }
 

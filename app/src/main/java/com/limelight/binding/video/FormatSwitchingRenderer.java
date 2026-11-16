@@ -61,8 +61,11 @@ public class FormatSwitchingRenderer extends VideoDecoderRenderer {
 
     @Override
     public int getCapabilities() {
-        // Queried before the format is negotiated, so it always describes the MediaCodec path
-        return mediaCodec.getCapabilities();
+        // Queried before the format is negotiated, so it describes the MediaCodec path. Direct submit is
+        // removed: it runs the decoder on the network receive thread, which is fine for MediaCodec (it
+        // only queues the buffer) but PyroWave decodes on the GPU and blocks for a whole frame, so
+        // packets would pile up in the socket buffer and add hundreds of milliseconds of delay.
+        return mediaCodec.getCapabilities() & ~MoonBridge.CAPABILITY_DIRECT_SUBMIT;
     }
 
     @Override
