@@ -69,6 +69,10 @@ public class PreferenceConfiguration {
     private static final String LEGACY_DISABLE_FRAME_DROP_PREF_STRING = "checkbox_disable_frame_drop";
     private static final String ENABLE_HDR_PREF_STRING = "checkbox_enable_hdr";
     private static final String ENABLE_PYROWAVE_PREF_STRING = "checkbox_enable_pyrowave";
+    private static final String PYROWAVE_LATENCY_POLICY_PREF_STRING = "list_pyrowave_latency_policy";
+    private static final String PYROWAVE_SKIP_AGE_PREF_STRING = "seekbar_pyrowave_skip_age_ms";
+    private static final String PYROWAVE_PACKET_SIZE_PREF_STRING = "list_pyrowave_packet_size";
+    private static final String PYROWAVE_MAX_FRAME_PREF_STRING = "list_pyrowave_max_frame_kb";
     private static final String ENABLE_PIP_PREF_STRING = "checkbox_enable_pip";
     private static final String ENABLE_PERF_OVERLAY_STRING = "checkbox_enable_perf_overlay";
     private static final String ENABLE_PERF_LOGGING = "checkbox_enable_perf_logging";
@@ -270,6 +274,13 @@ public class PreferenceConfiguration {
     public boolean enableHdr;
     // True only when the user turned PyroWave on and this device can run it.
     public boolean enablePyroWave;
+    // What PyroWave does with a late frame: "lowest" (skip, the default), "smooth" (never skip) or "custom"
+    public String pyroWaveLatencyPolicy;
+    // Frame age in ms from which the "custom" policy skips a frame
+    public int pyroWaveSkipAgeMs;
+    // Asked of the host: largest PyroWave packet in bytes (0 = host decides) and cap on one frame in KB (0 = none)
+    public int pyroWavePacketSize;
+    public int pyroWaveMaxFrameKb;
     public boolean enablePip;
 
     public float parallax_depth;
@@ -717,6 +728,14 @@ private static int getFramePacingValue(Context context) {
                 Build.FINGERPRINT.contains("PPR1.180610.011/4079208_2235.1395");
     }
 
+    private static int parseIntPref(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     public static PreferenceConfiguration readPreferences(Context context) {
         return readPreferences(context, null);
     }
@@ -929,6 +948,10 @@ private static int getFramePacingValue(Context context) {
         config.enableHdr = prefs.getBoolean(ENABLE_HDR_PREF_STRING, DEFAULT_ENABLE_HDR) && !isShieldAtvFirmwareWithBrokenHdr();
         config.enablePyroWave = prefs.getBoolean(ENABLE_PYROWAVE_PREF_STRING, DEFAULT_ENABLE_PYROWAVE)
                 && com.eumarcodev.selene.pyrowave.PyroWaveSupport.isSupported(context);
+        config.pyroWaveLatencyPolicy = prefs.getString(PYROWAVE_LATENCY_POLICY_PREF_STRING, "lowest");
+        config.pyroWaveSkipAgeMs = prefs.getInt(PYROWAVE_SKIP_AGE_PREF_STRING, 30);
+        config.pyroWavePacketSize = parseIntPref(prefs.getString(PYROWAVE_PACKET_SIZE_PREF_STRING, "0"));
+        config.pyroWaveMaxFrameKb = parseIntPref(prefs.getString(PYROWAVE_MAX_FRAME_PREF_STRING, "0"));
         config.enablePip = prefs.getBoolean(ENABLE_PIP_PREF_STRING, DEFAULT_ENABLE_PIP);
         config.enablePerfOverlay = prefs.getBoolean(ENABLE_PERF_OVERLAY_STRING, DEFAULT_ENABLE_PERF_OVERLAY);
         config.enablePerfLogging = prefs.getBoolean(ENABLE_PERF_LOGGING, DEFAULT_ENABLE_PERF_LOGGING);

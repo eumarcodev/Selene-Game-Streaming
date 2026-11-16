@@ -29,6 +29,7 @@ import com.limelight.binding.video.FormatSwitchingRenderer;
 import com.limelight.binding.video.MediaCodecDecoderRenderer;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PerfOverlayListener;
+import com.limelight.binding.video.OverlayEvents;
 import com.limelight.binding.video.PyroWaveDecoderRenderer;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
@@ -743,7 +744,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (prefConfig.enablePyroWave) {
             supportedVideoFormats |= MoonBridge.VIDEO_FORMAT_PYROWAVE;
         }
-        pyroWaveRenderer = new PyroWaveDecoderRenderer(this);
+        MoonBridge.setPyroWavePrefs(prefConfig.pyroWavePacketSize, prefConfig.pyroWaveMaxFrameKb);
+        pyroWaveRenderer = new PyroWaveDecoderRenderer(this, this, prefConfig.enablePerfOverlayLite, prefConfig.bitrate,
+                prefConfig.pyroWaveLatencyPolicy, prefConfig.pyroWaveSkipAgeMs);
         videoRenderer = new FormatSwitchingRenderer(decoderRenderer, pyroWaveRenderer);
 
         int gamepadMask = ControllerHandler.getAttachedControllerMask(this);
@@ -3500,6 +3503,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean stageFailed(final String stage, final int portFlags, final int errorCode) {
+        OverlayEvents.add(getString(R.string.pw_event_stage_failed, stage, errorCode));
         // Perform a connection test if the failure could be due to a blocked port
         // This does network I/O, so don't do it on the main thread.
         final int portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER, 443, portFlags);
@@ -3576,6 +3580,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void connectionTerminated(final int errorCode) {
+        OverlayEvents.add(getString(R.string.pw_event_terminated, errorCode));
         // Perform a connection test if the failure could be due to a blocked port
         // This does network I/O, so don't do it on the main thread.
         final int portFlags = MoonBridge.getPortFlagsFromTerminationErrorCode(errorCode);
@@ -3660,6 +3665,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void connectionStatusUpdate(final int connectionStatus) {
+        if (connectionStatus == MoonBridge.CONN_STATUS_POOR) {
+            OverlayEvents.add(getString(R.string.pw_event_poor));
+        }
+        else if (connectionStatus == MoonBridge.CONN_STATUS_OKAY) {
+            OverlayEvents.add(getString(R.string.pw_event_okay));
+        }
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -3690,6 +3701,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void connectionStarted() {
+        OverlayEvents.reset();
+        OverlayEvents.add(getString(R.string.pw_event_started));
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -3958,7 +3971,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     @Override
-    public void onPerfUpdate(final String text) {
+    public void onPerfUpdate(final CharSequence text) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {

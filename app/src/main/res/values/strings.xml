@@ -304,6 +304,24 @@
     <string name="summary_disable_frame_drop">May reduce micro-stuttering on some devices, but can increase latency</string>
     <string name="title_video_format">Change codec settings</string>
     <string name="summary_video_format">Newer codecs can lower video bandwidth requirements if your device supports them. Codec selections may be ignored if not supported by the host software or GPU.</string>
+    <string name="category_pyrowave_settings">PyroWave (Experimental)</string>
+    <string name="title_pyrowave_latency_policy">Late frames</string>
+    <string name="summary_pyrowave_latency_policy">What to do with a frame that arrives late. Lowest latency skips it to keep the picture current. Smoothest decodes every frame.</string>
+    <string name="pyrowave_policy_lowest">Lowest latency (default)</string>
+    <string name="pyrowave_policy_smooth">Smoothest (never skip)</string>
+    <string name="pyrowave_policy_custom">Custom skip age</string>
+    <string name="title_pyrowave_skip_age">Skip age</string>
+    <string name="summary_pyrowave_skip_age">Used with the custom policy: a frame older than this is skipped.</string>
+    <string name="suffix_seekbar_ms">ms</string>
+    <string name="title_pyrowave_packet_size">Packet size</string>
+    <string name="summary_pyrowave_packet_size">Largest PyroWave packet the host should send. Smaller packets can help on networks that drop big datagrams. The host may use a smaller value than asked. Needs a Helios host.</string>
+    <string name="title_pyrowave_max_frame">Maximum frame size</string>
+    <string name="summary_pyrowave_max_frame">Cap on the size of one frame, which lowers the peak bandwidth at the cost of picture quality in busy scenes. The host may use a larger value than asked. Needs a Helios host.</string>
+    <string name="pyrowave_pref_auto">Let the host decide (default)</string>
+    <string name="pyrowave_pref_nolimit">No limit (default)</string>
+    <string name="pw_overlay_requested">Asked of host: packet %1$s, max frame %2$s</string>
+    <string name="pw_overlay_pref_auto">auto</string>
+    <string name="pw_overlay_pref_nolimit">no limit</string>
     <string name="title_enable_pyrowave">PyroWave (Experimental)</string>
     <string name="summary_enable_pyrowave">Low-latency codec for wired or strong Wi-Fi connections. It needs a lot of bandwidth (roughly 200 Mbps and up) and a host running Helios with PyroWave support. Falls back to the regular codecs when unavailable.</string>
     <string name="summary_pyrowave_unsupported">This device does not support PyroWave: %1$s.</string>
@@ -746,4 +764,28 @@
 
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
+
+    <!-- PyroWave performance overlay -->
+    <string name="pw_overlay_video">PyroWave %1$dx%2$d  %3$.1f FPS  skipped %4$d</string>
+    <string name="pw_overlay_decode">Decode: %1$.1f ms</string>
+    <string name="pw_overlay_host">Host encode: %1$.1f ms</string>
+    <string name="pw_overlay_speed">Speed: %1$.1f Mbit/s</string>
+    <string name="pw_overlay_frame_size">Frame: %1$d KB avg, %2$d KB max</string>
+    <string name="pw_overlay_loss">Loss: incomplete frames %1$.1f%%, packets %2$.1f%%</string>
+    <string name="pw_overlay_rtt">Network: %1$d ms (variance %2$d ms)</string>
+    <string name="pw_overlay_audio">Audio: lost %1$d, recovered %2$d, gave up %3$d, underruns %4$d</string>
+    <string name="pw_overlay_wifi">Wi-Fi: %1$d Mbit/s, %2$d dBm</string>
+    <string name="pw_overlay_lite_speed">%1$.0f Mbit/s</string>
+    <string name="pw_overlay_lite_rtt">%1$d ms</string>
+    <string name="pw_overlay_lite_decode">dec %1$.1f ms</string>
+    <string name="pw_overlay_lite_loss">loss %1$.1f%%</string>
+    <string name="pw_overlay_lite_fps">%1$.0f FPS</string>
+    <string name="pw_overlay_lite_audio">audio %1$d lost</string>
+    <string name="pw_overlay_versions">Selene %1$s / Helios %2$s</string>
+    <string name="pw_overlay_unknown_host">unknown</string>
+    <string name="pw_event_started">Stream started</string>
+    <string name="pw_event_poor">Poor connection</string>
+    <string name="pw_event_okay">Connection back to normal</string>
+    <string name="pw_event_terminated">Connection terminated (error %1$d)</string>
+    <string name="pw_event_stage_failed">%1$s failed (error %2$d)</string>
 </resources>
