@@ -82,7 +82,8 @@ Pull requests and ideas are welcome.
 
 ## Building
 * Install Android Studio and the Android NDK
-* Run ‘git submodule update --init --recursive’ from within the repository folder
+* Run ‘git submodule update --init’ from within the repository folder, then ‘git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c’ and ‘bash third_party/pyrowave/checkout_granite.sh’ (PyroWave's Granite has many nested submodules that are not needed, so do not use ‘--recursive’ on everything)
+* Install the CMake package (‘cmake;3.22.1’) from the Android SDK Manager; it builds the PyroWave module
 * In the repository folder, create a file called ‘local.properties’. Add an ‘ndk.dir=’ property to the local.properties file and set it equal to your NDK directory.
 * Build the APK using Android Studio or gradle
 

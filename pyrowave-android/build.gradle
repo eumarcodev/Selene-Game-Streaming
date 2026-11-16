@@ -1,0 +1,53 @@
+// Builds the PyroWave codec (third_party/pyrowave) as libpyrowave-shared.so for the app.
+// The sources come from the pyrowave git submodule; run third_party/pyrowave/checkout_granite.sh
+// after `git submodule update --init` to fetch the small part of Granite it needs.
+apply plugin: 'com.android.library'
+
+def pyrowaveDir = file('../third_party/pyrowave')
+
+android {
+    ndkVersion "27.0.12077973"
+
+    compileSdk = 36
+
+    namespace 'com.eumarcodev.selene.pyrowave'
+
+    defaultConfig {
+        minSdk 21
+
+        // PyroWave needs Vulkan 1.1 and compute, which only exists on 64-bit devices in practice.
+        ndk {
+            abiFilters "arm64-v8a", "x86_64"
+        }
+
+        externalNativeBuild {
+            cmake {
+                // Vulkan is loaded at run time (volk), but the NDK headers it needs require API 24.
+                // The library is only loaded by the app on devices where PyroWave is usable.
+                arguments "-DANDROID_PLATFORM=android-24",
+                          "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                          "-DCMAKE_BUILD_TYPE=Release"
+                targets "pyrowave-shared"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+}
+
+// Fail early with a clear message instead of a CMake error about a missing Granite directory.
+tasks.configureEach { task ->
+    if (task.name.startsWith('configureCMake') || task.name.startsWith('buildCMake')) {
+        task.doFirst {
+            if (!new File(pyrowaveDir, 'Granite/third_party/volk/volk.h').exists()) {
+                throw new GradleException("PyroWave sources are incomplete. Run:\n" +
+                        "  git submodule update --init third_party/pyrowave\n" +
+                        "  bash third_party/pyrowave/checkout_granite.sh")
+            }
+        }
+    }
+}
