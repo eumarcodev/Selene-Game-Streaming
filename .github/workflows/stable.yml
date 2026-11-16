@@ -97,7 +97,8 @@ jobs:
       - name: Open PRs from master
         run: |
           set -uo pipefail
-          targets="develop $(git branch -r --list 'origin/release/*' | sed -E 's#^ *origin/##' | tr '\n' ' ')"
+          # Only develop: the release/* branches are cut from develop and only get fixes, so they need nothing from master.
+          targets="develop"
           for base in ${targets}; do
             git rev-parse -q --verify "origin/${base}" > /dev/null || { echo "${base} does not exist, skipping"; continue; }
             if git merge-base --is-ancestor "${GITHUB_SHA}" "origin/${base}"; then
