@@ -17,7 +17,7 @@ public final class PyroWaveNative {
     public static native int nativeSubmitFrame(long handle, byte[] data, int length);
 
     /** Encodes and shows a generated test pattern. Used to verify the pipeline without a server. */
-    public static native int nativeSelfTestFrame(long handle, int frame);
+    public static native int nativeSelfTestFrame(long handle, int frame, int lossPercent);
 
     public static native void nativeDestroy(long handle);
 
