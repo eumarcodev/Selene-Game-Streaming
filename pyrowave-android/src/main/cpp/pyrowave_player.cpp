@@ -10,6 +10,8 @@
 #include <jni.h>
 #include <stdint.h>
 #include <string.h>
+#include <chrono>
+#include <mutex>
 #include <vector>
 
 #define VK_USE_PLATFORM_ANDROID_KHR 1
@@ -35,6 +37,21 @@ struct Plane
 	VkDeviceMemory memory = VK_NULL_HANDLE;
 	VkImageView view = VK_NULL_HANDLE;
 	uint32_t width = 0, height = 0;
+};
+
+// Sums over the frames presented since the last read, in nanoseconds.
+struct StageTotals
+{
+	int64_t parse = 0;      // bitstream parse (push_packet)
+	int64_t fence_wait = 0; // wait for the previous frame to finish on the GPU
+	int64_t acquire = 0;    // vkAcquireNextImageKHR
+	int64_t record = 0;     // command recording, the decoder commands included
+	int64_t submit = 0;     // vkQueueSubmit
+	int64_t present = 0;    // vkQueuePresentKHR
+	uint32_t frames = 0;
+	int64_t gpu_decode = 0;  // GPU time of the decode
+	int64_t gpu_present = 0; // GPU time of the YCbCr to RGB pass
+	uint32_t gpu_frames = 0;
 };
 
 struct Player
@@ -82,7 +99,36 @@ struct Player
 
 	uint64_t frames_presented = 0;
 	uint64_t frames_dropped = 0;
+
+	// GPU time of the decode and of the presentation pass, from timestamp queries (when supported).
+	VkQueryPool query_pool = VK_NULL_HANDLE;
+	bool query_pending = false;
+	uint64_t timestamp_mask = 0;
+	double timestamp_period_ns = 0.0;
+
+	// Time spent in each stage since the last nativeStageStats call. Written by the decoder thread,
+	// read by the overlay timer.
+	std::mutex stats_lock;
+	StageTotals stages;
 };
+
+int64_t now_ns()
+{
+	return std::chrono::duration_cast<std::chrono::nanoseconds>(
+		std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+const char *present_mode_name(VkPresentModeKHR mode)
+{
+	switch (mode)
+	{
+	case VK_PRESENT_MODE_IMMEDIATE_KHR: return "immediate";
+	case VK_PRESENT_MODE_MAILBOX_KHR: return "mailbox";
+	case VK_PRESENT_MODE_FIFO_KHR: return "fifo";
+	case VK_PRESENT_MODE_FIFO_RELAXED_KHR: return "fifo relaxed";
+	default: return "other";
+	}
+}
 
 uint32_t find_memory_type(VkPhysicalDevice gpu, uint32_t bits, VkMemoryPropertyFlags want)
 {
@@ -206,6 +252,9 @@ bool create_swapchain(Player &p)
 		return false;
 	p.sc_format = chosen.format;
 	p.sc_extent = extent;
+	LOGI("Swapchain: present mode %s (%u offered), %u images requested, pre-transform 0x%x (current 0x%x), format %d",
+	     present_mode_name(mode), unsigned(modes.size()), sci.minImageCount, unsigned(sci.preTransform),
+	     unsigned(caps.currentTransform), int(chosen.format));
 
 	vkGetSwapchainImagesKHR(p.vk, p.swapchain, &count, nullptr);
 	p.sc_images.resize(count);
@@ -352,6 +401,7 @@ void destroy_player(Player *p)
 			if (pl.image) vkDestroyImage(p->vk, pl.image, nullptr);
 			if (pl.memory) vkFreeMemory(p->vk, pl.memory, nullptr);
 		}
+		if (p->query_pool) vkDestroyQueryPool(p->vk, p->query_pool, nullptr);
 		if (p->fence) vkDestroyFence(p->vk, p->fence, nullptr);
 		if (p->acquire_sem) vkDestroySemaphore(p->vk, p->acquire_sem, nullptr);
 		if (p->render_sem) vkDestroySemaphore(p->vk, p->render_sem, nullptr);
@@ -430,6 +480,26 @@ Player *create_player(JNIEnv *env, jobject surface, int width, int height, bool 
 		return nullptr;
 	}
 	vkGetDeviceQueue(p->vk, p->family, 0, &p->queue);
+
+	// Timestamp queries give the GPU time of the decode. Not every mobile driver has them.
+	VkPhysicalDeviceProperties gpu_props;
+	vkGetPhysicalDeviceProperties(p->gpu, &gpu_props);
+	uint32_t valid_bits = qprops[p->family].timestampValidBits;
+	if (valid_bits != 0 && gpu_props.limits.timestampPeriod > 0.0f)
+	{
+		VkQueryPoolCreateInfo qpci = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+		qpci.queryType = VK_QUERY_TYPE_TIMESTAMP;
+		qpci.queryCount = 3;
+		if (vkCreateQueryPool(p->vk, &qpci, nullptr, &p->query_pool) == VK_SUCCESS)
+		{
+			p->timestamp_mask = valid_bits >= 64 ? ~0ull : ((1ull << valid_bits) - 1);
+			p->timestamp_period_ns = double(gpu_props.limits.timestampPeriod);
+		}
+		else
+			p->query_pool = VK_NULL_HANDLE;
+	}
+	LOGI("GPU: %s, timestamp queries %s (%u valid bits, period %.2f ns)", gpu_props.deviceName,
+	     p->query_pool ? "on" : "off", valid_bits, double(gpu_props.limits.timestampPeriod));
 
 	pyrowave_decoder_create_info dci = {};
 	dci.device = p->device;
@@ -542,7 +612,7 @@ Player *create_player(JNIEnv *env, jobject surface, int width, int height, bool 
 }
 
 // Returns 0 when presented, 1 when the frame was dropped, negative on errors.
-int decode_and_present(Player &p)
+int decode_and_present(Player &p, int64_t parse_ns = 0)
 {
 	// A frame that lost packets is still decoded: the missing blocks just come out blurry. The lowest
 	// bands must be intact (otherwise the artifacts are extreme) and at least half of the blocks must
@@ -553,10 +623,26 @@ int decode_and_present(Player &p)
 		return 1;
 	}
 
+	const int64_t t_start = now_ns();
 	if (p.fence_pending)
 	{
 		vkWaitForFences(p.vk, 1, &p.fence, VK_TRUE, UINT64_MAX);
 		p.fence_pending = false;
+	}
+	const int64_t t_fence = now_ns();
+
+	// The previous frame is done on the GPU, so its timestamps can be read without waiting.
+	int64_t gpu_decode_ns = -1, gpu_present_ns = -1;
+	if (p.query_pending)
+	{
+		uint64_t ts[3] = {};
+		if (vkGetQueryPoolResults(p.vk, p.query_pool, 0, 3, sizeof(ts), ts, sizeof(uint64_t),
+		                          VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+		{
+			gpu_decode_ns = int64_t(double((ts[1] - ts[0]) & p.timestamp_mask) * p.timestamp_period_ns);
+			gpu_present_ns = int64_t(double((ts[2] - ts[1]) & p.timestamp_mask) * p.timestamp_period_ns);
+		}
+		p.query_pending = false;
 	}
 
 	uint32_t image_index = 0;
@@ -571,11 +657,15 @@ int decode_and_present(Player &p)
 	if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR)
 		return -3;
 
+	const int64_t t_acquire = now_ns();
+
 	vkResetFences(p.vk, 1, &p.fence);
 	vkResetCommandBuffer(p.cmd, 0);
 	VkCommandBufferBeginInfo cbbi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	cbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	vkBeginCommandBuffer(p.cmd, &cbbi);
+	if (p.query_pool)
+		vkCmdResetQueryPool(p.cmd, p.query_pool, 0, 3);
 
 	// Planes become writable by the decoder. Previous contents are not needed.
 	VkImageMemoryBarrier bar[3] = {};
@@ -611,6 +701,8 @@ int decode_and_present(Player &p)
 		v.swizzle = VK_COMPONENT_SWIZZLE_IDENTITY;
 		v.layout = VK_IMAGE_LAYOUT_GENERAL;
 	}
+	if (p.query_pool)
+		vkCmdWriteTimestamp(p.cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, p.query_pool, 0);
 	pyrowave_device_set_command_buffer(p.device, p.cmd);
 	pyrowave_result dres = pyrowave_decoder_decode_gpu_buffer(p.decoder, nullptr, nullptr, &buffers);
 	pyrowave_device_set_command_buffer(p.device, VK_NULL_HANDLE);
@@ -620,6 +712,9 @@ int decode_and_present(Player &p)
 		LOGE("decode_gpu_buffer failed: %d", int(dres));
 		return -4;
 	}
+
+	if (p.query_pool)
+		vkCmdWriteTimestamp(p.cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, p.query_pool, 1);
 
 	// Decoded data becomes readable by the presentation shader.
 	VkMemoryBarrier mb = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
@@ -650,7 +745,10 @@ int decode_and_present(Player &p)
 	vkCmdBindDescriptorSets(p.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p.pipe_layout, 0, 1, &p.desc_set, 0, nullptr);
 	vkCmdDraw(p.cmd, 3, 1, 0, 0);
 	vkCmdEndRenderPass(p.cmd);
+	if (p.query_pool)
+		vkCmdWriteTimestamp(p.cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, p.query_pool, 2);
 	vkEndCommandBuffer(p.cmd);
+	const int64_t t_record = now_ns();
 
 	VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	VkSubmitInfo si = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -664,6 +762,8 @@ int decode_and_present(Player &p)
 	if (vkQueueSubmit(p.queue, 1, &si, p.fence) != VK_SUCCESS)
 		return -5;
 	p.fence_pending = true;
+	p.query_pending = p.query_pool != VK_NULL_HANDLE;
+	const int64_t t_submit = now_ns();
 
 	VkPresentInfoKHR pi = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 	pi.waitSemaphoreCount = 1;
@@ -674,7 +774,26 @@ int decode_and_present(Player &p)
 	r = vkQueuePresentKHR(p.queue, &pi);
 	if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR && r != VK_ERROR_OUT_OF_DATE_KHR)
 		return -6;
+	const int64_t t_present = now_ns();
 	p.frames_presented++;
+
+	{
+		std::lock_guard<std::mutex> holder(p.stats_lock);
+		StageTotals &st = p.stages;
+		st.parse += parse_ns;
+		st.fence_wait += t_fence - t_start;
+		st.acquire += t_acquire - t_fence;
+		st.record += t_record - t_acquire;
+		st.submit += t_submit - t_record;
+		st.present += t_present - t_submit;
+		st.frames++;
+		if (gpu_decode_ns >= 0)
+		{
+			st.gpu_decode += gpu_decode_ns;
+			st.gpu_present += gpu_present_ns;
+			st.gpu_frames++;
+		}
+	}
 	return 0;
 }
 
@@ -771,6 +890,7 @@ Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSubmitFrame(JNIEnv *env
 	jbyte *bytes = static_cast<jbyte *>(env->GetPrimitiveArrayCritical(data, nullptr));
 	if (!bytes)
 		return -1;
+	const int64_t parse_start = now_ns();
 	pyrowave_decoder_clear(p->decoder);
 	pyrowave_result push = pyrowave_decoder_push_packet(p->decoder, bytes, size_t(length));
 	env->ReleasePrimitiveArrayCritical(data, bytes, JNI_ABORT);
@@ -779,7 +899,7 @@ Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSubmitFrame(JNIEnv *env
 		p->frames_dropped++;
 		return 1;
 	}
-	return decode_and_present(*p);
+	return decode_and_present(*p, now_ns() - parse_start);
 }
 
 JNIEXPORT void JNICALL
@@ -808,4 +928,40 @@ Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSelfTestFrame(JNIEnv *,
 {
 	auto *p = reinterpret_cast<Player *>(handle);
 	return p ? self_test_frame(*p, frame, lossPercent) : -1;
+}
+
+// Fills out with the average time of each stage since the last call, in milliseconds:
+// parse, fence wait, acquire, record, submit, present, GPU decode, GPU present. The GPU values are -1
+// when the device has no timestamp queries. Returns the number of frames averaged.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeStageStats(JNIEnv *env, jclass, jlong handle, jfloatArray out)
+{
+	auto *p = reinterpret_cast<Player *>(handle);
+	if (!p || !out || env->GetArrayLength(out) < 8)
+		return 0;
+
+	StageTotals st;
+	{
+		std::lock_guard<std::mutex> holder(p->stats_lock);
+		st = p->stages;
+		p->stages = StageTotals();
+	}
+	if (st.frames == 0)
+		return 0;
+
+	const double n = double(st.frames) * 1e6;
+	jfloat ms[8] = {
+		jfloat(double(st.parse) / n), jfloat(double(st.fence_wait) / n), jfloat(double(st.acquire) / n),
+		jfloat(double(st.record) / n), jfloat(double(st.submit) / n), jfloat(double(st.present) / n),
+		-1.0f, -1.0f,
+	};
+	if (st.gpu_frames > 0)
+	{
+		ms[6] = jfloat(double(st.gpu_decode) / (double(st.gpu_frames) * 1e6));
+		ms[7] = jfloat(double(st.gpu_present) / (double(st.gpu_frames) * 1e6));
+	}
+	env->SetFloatArrayRegion(out, 0, 8, ms);
+	LOGI("stages ms (%u frames): parse %.2f, fence wait %.2f, acquire %.2f, record %.2f, submit %.2f, present %.2f, GPU decode %.2f, GPU present %.2f",
+	     st.frames, ms[0], ms[1], ms[2], ms[3], ms[4], ms[5], ms[6], ms[7]);
+	return jint(st.frames);
 }
