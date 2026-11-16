@@ -1,15 +1,34 @@
-# Artemis Android
+# Selene Game Streaming
 
-Previously named Moonlight Noir
+An open source Android client for [Helios](https://github.com/eumarcodev/Helios-Server), [Apollo](https://github.com/ClassicOldSong/Apollo) and [Sunshine](https://github.com/LizardByte/Sunshine) hosts.
 
-An open source client for [Apollo](https://github.com/ClassicOldSong/Apollo)/[Sunshine](https://github.com/LizardByte/Sunshine).
-
-Artemis Android will allow you to stream your collection of games from your Windows PC to your Android device,
+Selene Game Streaming will allow you to stream your collection of games from your Windows PC to your Android device,
 whether in your own home or over the internet.
 
-Artemis is currently the best fork of Moonlight with loads of optimizations for office usage.
+It is an independent fork of [Artemis](https://github.com/ClassicOldSong/moonlight-android) (previously named Moonlight Noir), which is itself a fork of
+[Moonlight Android](https://github.com/moonlight-stream/moonlight-android), with loads of optimizations for office usage.
 
-A more seamless experience with virtual display will be Artemis paired with [Apollo](https://github.com/ClassicOldSong/Apollo).
+A more seamless experience with virtual display will be Selene paired with [Helios](https://github.com/eumarcodev/Helios-Server).
+
+## Lineage and credits
+
+The names continue the sun and moon family of the streaming projects: Selene is the moon, the companion of the sun host Helios.
+
+| Project | Role | Authors |
+|---------|------|---------|
+| [Moonlight](https://github.com/moonlight-stream) (moonlight-android) | Original open source client for NVIDIA GameStream | Cameron Gutman and the Moonlight contributors |
+| [Artemis (Moonlight Noir)](https://github.com/ClassicOldSong/moonlight-android) | Moonlight Android fork with virtual display, clipboard sync and many client features | ClassicOldSong |
+| **Selene Game Streaming** | This project, an independent fork of Artemis | Maintained by [eumarcodev](https://github.com/eumarcodev) |
+
+The matching host side: [Sunshine](https://github.com/LizardByte/Sunshine) (LizardByte and contributors) -> [Apollo](https://github.com/ClassicOldSong/Apollo) (ClassicOldSong) -> [Helios](https://github.com/eumarcodev/Helios-Server).
+
+### Thanks
+
+- **ClassicOldSong**, for Artemis and Apollo, which are the base of this fork.
+- **Cameron Gutman**, **Diego Waxemberg**, **Aaron Neyer**, **Andrew Hennessy** and every Moonlight contributor, for the client and the streaming protocol work.
+- **LizardByte** and the Sunshine contributors.
+
+This fork keeps the original license (GPLv3) and copyright notices. The upstream history is preserved in this repository's git log.
 
 # Features
 
@@ -42,35 +61,29 @@ If you switch back to the main stream version, you'll be missing the following a
 25. Add option to quit app directly
 26. Samsung DeX scrolling support
 27. Proper click/scroll/right-click for trackpad on generic Android tablet when using local cursor
-28. Virtual Display integration with [Apollo](https://github.com/ClassicOldSong/Apollo)
-29. Server Command integration with [Apollo](https://github.com/ClassicOldSong/Apollo)
-30. Clipboard sync (requires Apollo)
+28. Virtual Display integration with [Helios](https://github.com/eumarcodev/Helios-Server) / [Apollo](https://github.com/ClassicOldSong/Apollo)
+29. Server Command integration with [Helios](https://github.com/eumarcodev/Helios-Server) / [Apollo](https://github.com/ClassicOldSong/Apollo)
+30. Clipboard sync (requires Helios or Apollo)
 31. SBS 3D for external Displays (Using AI MiDaS v2 Lite)
 
-# Disclaimer
+# About this fork
 
-This is the `go away` version of Moonlight Android.
+Selene Game Streaming started as a fork of Artemis. Since the original project is no longer being updated, this fork continues independently, with its own releases and roadmap.
 
-I got kicked from Moonlight and Sunshine's Discord server literally for helping people out.
+It is not affiliated with Moonlight, Artemis, Apollo or Sunshine. Compatibility with other GameStream-compatible hosts is kept where possible, but is not guaranteed.
 
-This is what I got for finding a bug, opened an issue, getting no response, troubleshoot myself, fixed the issue myself, shared it by PR to the main repo hoping my efforts can help someone else during the maintainance gap.
+Selene uses its own application id (`com.eumarcodev.selene`), so it installs next to Artemis and Moonlight and does **not** reuse their settings or pairings: pair it again with your host.
 
-Yes, I'm going away. Fixes and improvements on this fork are not necessarily be merged to the main repo either. I have also started [a fork of Sunshine called Apollo](https://github.com/ClassicOldSong/Apollo) and will add useful features that will never get merged by the main repo shortly. [Apollo](https://github.com/ClassicOldSong/Apollo) and [Moonlight Noir](https://github.com/ClassicOldSong/moonlight-android) will no longer be compatible with OG Sunshine and OG Moonlight eventually, but they'll work even better with much more carefully designed features.
-
-The main repo had stayed silent for 5 months, with nobody actually responding to issues, and people are getting totally no help besides the limited FAQ in their Discord server. I tried to answer issues and questions, solve problems within my ablilty but I got kicked out just for helping others.
-
-**PRs for feature improvements are welcomed here unlike the main repo, your ideas are more likely to be appreciated and your efforts are actually being respected. We welcome people who can and willing to share their efforts, helping yourselves and other people in need.**
-
-**Update**: They have contacted me and apologized for this incident, but the fact it **happened** still motivated me to start my own fork.
+Pull requests and ideas are welcome.
 
 ## Downloads
-* [Download APK directly](https://github.com/ClassicOldSong/moonlight-android/releases)
-* [Use Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.limelight.noir%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FClassicOldSong%2Fmoonlight-android%22%2C%22author%22%3A%22ClassicOldSong%22%2C%22name%22%3A%22Artemis%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22nonRoot%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D) (recommended)
+* [Download APK directly](https://github.com/eumarcodev/Selene-Game-Streaming/releases)
+* [Use Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.eumarcodev.selene%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Feumarcodev%2FSelene-Game-Streaming%22%2C%22author%22%3A%22eumarcodev%22%2C%22name%22%3A%22Selene%20Game%20Streaming%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22nonRoot%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D)%5C%22%7D%22%7D) (recommended)
 
 ## Building
 * Install Android Studio and the Android NDK
-* Run ‘git submodule update --init --recursive’ from within moonlight-android/
-* In moonlight-android/, create a file called ‘local.properties’. Add an ‘ndk.dir=’ property to the local.properties file and set it equal to your NDK directory.
+* Run ‘git submodule update --init --recursive’ from within the repository folder
+* In the repository folder, create a file called ‘local.properties’. Add an ‘ndk.dir=’ property to the local.properties file and set it equal to your NDK directory.
 * Build the APK using Android Studio or gradle
 
 ## Authors
