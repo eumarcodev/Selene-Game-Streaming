@@ -771,7 +771,7 @@
     <string name="pw_overlay_host">Host encode: %1$.1f ms</string>
     <string name="pw_overlay_speed">Speed: %1$.1f Mbit/s</string>
     <string name="pw_overlay_frame_size">Frame: %1$d KB avg, %2$d KB max</string>
-    <string name="pw_overlay_loss">Loss: frames %1$.1f%%, packets %2$.1f%%</string>
+    <string name="pw_overlay_loss">Loss: incomplete frames %1$.1f%%, packets %2$.1f%%</string>
     <string name="pw_overlay_rtt">Network: %1$d ms (variance %2$d ms)</string>
     <string name="pw_overlay_audio">Audio: lost %1$d, recovered %2$d, gave up %3$d, underruns %4$d</string>
     <string name="pw_overlay_wifi">Wi-Fi: %1$d Mbit/s, %2$d dBm</string>

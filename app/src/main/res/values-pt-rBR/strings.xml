@@ -280,7 +280,7 @@
     <string name="pw_overlay_host">Codificação no host: %1$.1f ms</string>
     <string name="pw_overlay_speed">Velocidade: %1$.1f Mbit/s</string>
     <string name="pw_overlay_frame_size">Quadro: %1$d KB médio, %2$d KB máx.</string>
-    <string name="pw_overlay_loss">Perda: quadros %1$.1f%%, pacotes %2$.1f%%</string>
+    <string name="pw_overlay_loss">Perda: quadros incompletos %1$.1f%%, pacotes %2$.1f%%</string>
     <string name="pw_overlay_rtt">Rede: %1$d ms (variação %2$d ms)</string>
     <string name="pw_overlay_audio">Áudio: perdidos %1$d, recuperados %2$d, desistiu %3$d, falhas de buffer %4$d</string>
     <string name="pw_overlay_wifi">Wi-Fi: %1$d Mbit/s, %2$d dBm</string>
