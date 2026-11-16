@@ -1,1 +1,3 @@
 include ':app'
+include ':pyrowave'
+project(':pyrowave').projectDir = file('pyrowave-android')
