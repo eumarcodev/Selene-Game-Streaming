@@ -50,8 +50,14 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
-          submodules: recursive
+          # Not recursive: PyroWave's Granite submodule has many nested submodules we do not need.
+          submodules: true
           fetch-depth: 0
+
+      - name: Fetch the nested submodules we need
+        run: |
+          git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c
+          bash third_party/pyrowave/checkout_granite.sh
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -59,13 +65,13 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      # ndkVersion in app/build.gradle must match the NDK installed here
+      # ndkVersion in app/build.gradle must match the NDK installed here; CMake builds the PyroWave module
       - name: Install the Android NDK and platform
         run: |
           set -euo pipefail
           ndk=$(grep -oP 'ndkVersion\s+"\K[^"]+' app/build.gradle)
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "ndk;${ndk}" "platforms;android-36"
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "ndk;${ndk}" "platforms;android-36" "cmake;3.22.1"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5

@@ -25,9 +25,11 @@ import com.limelight.binding.input.virtual_controller.VirtualController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
 import com.limelight.binding.video.CrashListener;
+import com.limelight.binding.video.FormatSwitchingRenderer;
 import com.limelight.binding.video.MediaCodecDecoderRenderer;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PerfOverlayListener;
+import com.limelight.binding.video.PyroWaveDecoderRenderer;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.StreamConfiguration;
@@ -231,6 +233,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private TextView performanceOverlayBig;
 
     private MediaCodecDecoderRenderer decoderRenderer;
+    private PyroWaveDecoderRenderer pyroWaveRenderer;
+    private FormatSwitchingRenderer videoRenderer;
     private boolean reportedCrash;
 
     private WifiManager.WifiLock highPerfWifiLock;
@@ -734,6 +738,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
+        // PyroWave is only offered when the setting is on and the device passed the Vulkan check;
+        // the host picks it only if it can also encode it
+        if (prefConfig.enablePyroWave) {
+            supportedVideoFormats |= MoonBridge.VIDEO_FORMAT_PYROWAVE;
+        }
+        pyroWaveRenderer = new PyroWaveDecoderRenderer(this);
+        videoRenderer = new FormatSwitchingRenderer(decoderRenderer, pyroWaveRenderer);
+
         int gamepadMask = ControllerHandler.getAttachedControllerMask(this);
         if (!prefConfig.multiController) {
             // Always set gamepad 1 present for when multi-controller is
@@ -871,10 +883,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 // Der Decoder erhält die jeweils aktive Oberfläche vom Container
                 decoderRenderer.setRenderTarget(streamContainer.getSurface());
+                pyroWaveRenderer.setRenderTarget(streamContainer.getSurface());
 
                 // Starten Sie die NvConnection
                 conn.start(new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio),
-                        decoderRenderer, Game.this);
+                        videoRenderer, Game.this);
             }
         });
 
@@ -1776,7 +1789,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         if (conn != null) {
-            int videoFormat = decoderRenderer.getActiveVideoFormat();
+            int videoFormat = videoRenderer.getActiveVideoFormat();
 
             displayedFailureDialog = true;
             stopConnection();
@@ -1798,7 +1811,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // Add the video codec to the post-stream toast
             selectedVideoFormat += " [";
 
-            if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
+            if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_PYROWAVE) != 0) {
+                selectedVideoFormat += "PyroWave";
+            } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
                 selectedVideoFormat += "H.264";
             } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H265) != 0) {
                 selectedVideoFormat += "HEVC";
