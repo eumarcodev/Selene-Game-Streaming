@@ -746,4 +746,28 @@
 
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
+
+    <!-- PyroWave performance overlay -->
+    <string name="pw_overlay_video">PyroWave %1$dx%2$d  %3$.1f FPS  skipped %4$d</string>
+    <string name="pw_overlay_decode">Decode: %1$.1f ms</string>
+    <string name="pw_overlay_host">Host encode: %1$.1f ms</string>
+    <string name="pw_overlay_speed">Speed: %1$.1f Mbit/s</string>
+    <string name="pw_overlay_frame_size">Frame: %1$d KB avg, %2$d KB max</string>
+    <string name="pw_overlay_loss">Loss: frames %1$.1f%%, packets %2$.1f%%</string>
+    <string name="pw_overlay_rtt">Network: %1$d ms (variance %2$d ms)</string>
+    <string name="pw_overlay_audio">Audio: lost %1$d, recovered %2$d, gave up %3$d, underruns %4$d</string>
+    <string name="pw_overlay_wifi">Wi-Fi: %1$d Mbit/s, %2$d dBm</string>
+    <string name="pw_overlay_lite_speed">%1$.0f Mbit/s</string>
+    <string name="pw_overlay_lite_rtt">%1$d ms</string>
+    <string name="pw_overlay_lite_decode">dec %1$.1f ms</string>
+    <string name="pw_overlay_lite_loss">loss %1$.1f%%</string>
+    <string name="pw_overlay_lite_fps">%1$.0f FPS</string>
+    <string name="pw_overlay_lite_audio">audio -%1$d</string>
+    <string name="pw_overlay_versions">Selene %1$s / Helios %2$s</string>
+    <string name="pw_overlay_unknown_host">unknown</string>
+    <string name="pw_event_started">Stream started</string>
+    <string name="pw_event_poor">Poor connection</string>
+    <string name="pw_event_okay">Connection back to normal</string>
+    <string name="pw_event_terminated">Connection terminated (error %1$d)</string>
+    <string name="pw_event_stage_failed">%1$s failed (error %2$d)</string>
 </resources>

@@ -20,6 +20,19 @@ public class AndroidAudioRenderer implements AudioRenderer {
 
     private AudioTrack track;
 
+    // Number of buffer underruns of the current track (API 24+), the audible clicks and gaps
+    public int getUnderrunCount() {
+        AudioTrack t = track;
+        if (t == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) {
+            return 0;
+        }
+        try {
+            return t.getUnderrunCount();
+        } catch (IllegalStateException e) {
+            return 0;
+        }
+    }
+
     public AndroidAudioRenderer(Context context, boolean enableAudioFx) {
         this.context = context;
         this.enableAudioFx = enableAudioFx;

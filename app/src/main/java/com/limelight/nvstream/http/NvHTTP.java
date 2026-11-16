@@ -622,6 +622,11 @@ public class NvHTTP {
         return getXmlString(serverInfo, "gputype", false);
     }
 
+    // Real version of Helios, missing on other hosts and older Helios releases
+    public String getHeliosVersion(String serverInfo) throws XmlPullParserException, IOException {
+        return getXmlString(serverInfo, "HeliosVersion", false);
+    }
+
     public String getGfeVersion(String serverInfo) throws XmlPullParserException, IOException {
         // ServerCodecModeSupport wasn't present on old GFE versions
         return getXmlString(serverInfo, "GfeVersion", false);
