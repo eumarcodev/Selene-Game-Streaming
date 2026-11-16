@@ -217,6 +217,15 @@
     <string name="summary_checkbox_disable_warnings">Desativa as mensagens de aviso de conexão na tela durante a transmissão</string>
     <string name="title_disable_frame_drop">Nunca dropar quadros</string>
     <string name="summary_disable_frame_drop">Talvez reduza o micro-stuttering em alguns dispositivos, mas pode aumentar a latência</string>
+    <string name="category_pyrowave_settings">PyroWave (Experimental)</string>
+    <string name="title_pyrowave_latency_policy">Quadros atrasados</string>
+    <string name="summary_pyrowave_latency_policy">O que fazer com um quadro que chega atrasado. Menor latência descarta o quadro para manter a imagem atual. Mais suave decodifica todos os quadros.</string>
+    <string name="pyrowave_policy_lowest">Menor latência (padrão)</string>
+    <string name="pyrowave_policy_smooth">Mais suave (nunca descarta)</string>
+    <string name="pyrowave_policy_custom">Idade de descarte personalizada</string>
+    <string name="title_pyrowave_skip_age">Idade de descarte</string>
+    <string name="summary_pyrowave_skip_age">Usada na política personalizada: um quadro mais velho que isso é descartado.</string>
+    <string name="suffix_seekbar_ms">ms</string>
     <string name="title_enable_pyrowave">PyroWave (Experimental)</string>
     <string name="summary_enable_pyrowave">Codec de baixa latência para conexões cabeadas ou Wi-Fi forte. Exige muita banda (cerca de 200 Mbps ou mais) e um host Helios com suporte a PyroWave. Volta aos codecs normais quando indisponível.</string>
     <string name="summary_pyrowave_unsupported">Este dispositivo não suporta PyroWave: %1$s.</string>

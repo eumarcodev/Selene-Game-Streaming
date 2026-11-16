@@ -304,6 +304,15 @@
     <string name="summary_disable_frame_drop">May reduce micro-stuttering on some devices, but can increase latency</string>
     <string name="title_video_format">Change codec settings</string>
     <string name="summary_video_format">Newer codecs can lower video bandwidth requirements if your device supports them. Codec selections may be ignored if not supported by the host software or GPU.</string>
+    <string name="category_pyrowave_settings">PyroWave (Experimental)</string>
+    <string name="title_pyrowave_latency_policy">Late frames</string>
+    <string name="summary_pyrowave_latency_policy">What to do with a frame that arrives late. Lowest latency skips it to keep the picture current. Smoothest decodes every frame.</string>
+    <string name="pyrowave_policy_lowest">Lowest latency (default)</string>
+    <string name="pyrowave_policy_smooth">Smoothest (never skip)</string>
+    <string name="pyrowave_policy_custom">Custom skip age</string>
+    <string name="title_pyrowave_skip_age">Skip age</string>
+    <string name="summary_pyrowave_skip_age">Used with the custom policy: a frame older than this is skipped.</string>
+    <string name="suffix_seekbar_ms">ms</string>
     <string name="title_enable_pyrowave">PyroWave (Experimental)</string>
     <string name="summary_enable_pyrowave">Low-latency codec for wired or strong Wi-Fi connections. It needs a lot of bandwidth (roughly 200 Mbps and up) and a host running Helios with PyroWave support. Falls back to the regular codecs when unavailable.</string>
     <string name="summary_pyrowave_unsupported">This device does not support PyroWave: %1$s.</string>

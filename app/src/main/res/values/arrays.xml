@@ -19,6 +19,17 @@
         <item>3840x2160</item>
     </string-array>
 
+    <string-array name="pyrowave_latency_policy_names">
+        <item>@string/pyrowave_policy_lowest</item>
+        <item>@string/pyrowave_policy_smooth</item>
+        <item>@string/pyrowave_policy_custom</item>
+    </string-array>
+    <string-array name="pyrowave_latency_policy_values">
+        <item>lowest</item>
+        <item>smooth</item>
+        <item>custom</item>
+    </string-array>
+
     <string-array name="fps_names">
         <item>@string/fps_30</item>
         <item>@string/fps_60</item>

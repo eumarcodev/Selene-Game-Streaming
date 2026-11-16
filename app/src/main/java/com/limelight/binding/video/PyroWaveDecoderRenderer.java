@@ -20,8 +20,11 @@ import com.limelight.nvstream.av.video.VideoDecoderRenderer;
 public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     public static final int DR_OK = 0;
     public static final int DR_NEED_IDR = -1;
-    // A frame older than this is skipped, whatever the decode time
+    // The "lowest latency" policy skips a frame older than this, whatever the decode time
     private static final long MIN_SKIP_AGE_MS = 30;
+    public static final String POLICY_LOWEST = "lowest";
+    public static final String POLICY_SMOOTH = "smooth";
+    public static final String POLICY_CUSTOM = "custom";
 
     private Surface surface;
     private int width, height;
@@ -34,6 +37,8 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     private final PyroWaveOverlayFormatter overlayFormatter;
     private final StreamStatsSampler statsSampler = new StreamStatsSampler();
     private final float targetMbps;
+    private final String latencyPolicy;
+    private final long customSkipAgeMs;
     private final AtomicInteger framesDecoded = new AtomicInteger();
     private final AtomicInteger framesSkipped = new AtomicInteger();
     private final AtomicInteger framesSeen = new AtomicInteger();
@@ -48,8 +53,13 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
      * @param context used to read the overlay strings and the Wi-Fi state
      * @param lite true for the one line overlay
      * @param bitrateKbps the bitrate requested from the host, shown against the measured speed
+     * @param latencyPolicy POLICY_LOWEST, POLICY_SMOOTH or POLICY_CUSTOM: what to do with a late frame
+     * @param customSkipAgeMs frame age in ms from which POLICY_CUSTOM skips a frame
      */
-    public PyroWaveDecoderRenderer(PerfOverlayListener perfListener, Context context, boolean lite, int bitrateKbps) {
+    public PyroWaveDecoderRenderer(PerfOverlayListener perfListener, Context context, boolean lite, int bitrateKbps,
+                                   String latencyPolicy, int customSkipAgeMs) {
+        this.latencyPolicy = latencyPolicy != null ? latencyPolicy : POLICY_LOWEST;
+        this.customSkipAgeMs = customSkipAgeMs;
         this.perfListener = perfListener;
         this.overlayFormatter = context != null ? new PyroWaveOverlayFormatter(context, lite) : null;
         this.targetMbps = bitrateKbps / 1000f;
@@ -110,7 +120,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             hostLatencyTenthsMs.addAndGet(frameHostProcessingLatency);
             hostLatencyFrames.incrementAndGet();
         }
-        if (start - enqueueTimeMs > Math.max(MIN_SKIP_AGE_MS, 2 * (long) averageDecodeMs)) {
+        if (start - enqueueTimeMs > skipAgeMs()) {
             framesSkipped.incrementAndGet();
         } else {
             PyroWaveNative.nativeSubmitFrame(h, decodeUnitData, decodeUnitLength);
@@ -118,6 +128,18 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             framesDecoded.incrementAndGet();
         }
         return DR_OK;
+    }
+
+    /** Frames that waited longer than this are skipped. Long.MAX_VALUE means never. */
+    private long skipAgeMs() {
+        switch (latencyPolicy) {
+            case POLICY_SMOOTH:
+                return Long.MAX_VALUE;
+            case POLICY_CUSTOM:
+                return customSkipAgeMs;
+            default:
+                return Math.max(MIN_SKIP_AGE_MS, 2 * (long) averageDecodeMs);
+        }
     }
 
     private void startStatsTimer() {
