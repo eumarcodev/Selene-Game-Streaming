@@ -639,6 +639,21 @@ public class StreamSettings extends AppCompatActivity {
                     pyroWavePref.setChecked(false);
                     pyroWavePref.setSummary(getString(R.string.summary_pyrowave_unsupported, reason));
                 }
+                final Preference policyPref = findPreference("list_pyrowave_latency_policy");
+                final Preference skipAgePref = findPreference("seekbar_pyrowave_skip_age_ms");
+                if (policyPref != null && skipAgePref != null) {
+                    if (reason != null) {
+                        policyPref.setEnabled(false);
+                        skipAgePref.setEnabled(false);
+                    } else {
+                        // The skip age is only used by the custom policy
+                        skipAgePref.setEnabled("custom".equals(((ListPreference) policyPref).getValue()));
+                        policyPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                            skipAgePref.setEnabled("custom".equals(newValue));
+                            return true;
+                        });
+                    }
+                }
             }
 
             // Remove HDR preference for devices below Nougat
