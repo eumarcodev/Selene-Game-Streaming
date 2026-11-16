@@ -128,6 +128,16 @@ public class MoonBridge {
     public static final byte LI_BATTERY_PERCENTAGE_UNKNOWN = (byte)0xFF;
 
     private static AudioRenderer audioRenderer;
+
+    // Version of the host (Helios) reported by /serverinfo, null for other hosts. Shown by the overlay.
+    public static volatile String hostVersion;
+
+    // Times the Android audio output ran dry since the stream started (0 when not known)
+    public static int getAudioUnderruns() {
+        AudioRenderer renderer = audioRenderer;
+        return renderer instanceof com.limelight.binding.audio.AndroidAudioRenderer ?
+                ((com.limelight.binding.audio.AndroidAudioRenderer) renderer).getUnderrunCount() : 0;
+    }
     private static VideoDecoderRenderer videoRenderer;
     private static NvConnectionListener connectionListener;
 
@@ -416,6 +426,22 @@ public class MoonBridge {
 
     // The RTT is in the top 32 bits, and the RTT variance is in the bottom 32 bits
     public static native long getEstimatedRttInfo();
+
+    // Indexes into the array returned by getStreamStats(). Counters are unsigned 32 bit values
+    // that only grow during a connection (see STREAM_STATS in Limelight.h).
+    public static final int STREAM_STATS_VIDEO_PACKETS = 0;
+    public static final int STREAM_STATS_VIDEO_BYTES = 1;
+    public static final int STREAM_STATS_VIDEO_FRAMES = 2;
+    public static final int STREAM_STATS_VIDEO_FRAMES_INCOMPLETE = 3;
+    public static final int STREAM_STATS_VIDEO_FRAMES_LOST = 4;
+    public static final int STREAM_STATS_VIDEO_PACKETS_LOST = 5;
+    public static final int STREAM_STATS_AUDIO_PACKETS = 6;
+    public static final int STREAM_STATS_AUDIO_PACKETS_LOST = 7;
+    public static final int STREAM_STATS_AUDIO_PACKETS_RECOVERED = 8;
+    public static final int STREAM_STATS_AUDIO_BLOCKS_UNRECOVERABLE = 9;
+    public static final int STREAM_STATS_COUNT = 10;
+
+    public static native long[] getStreamStats();
 
     public static native String getLaunchUrlQueryParameters();
 

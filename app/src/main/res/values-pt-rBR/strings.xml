@@ -255,4 +255,28 @@
     <string name="fps_suffix_fps">FPS</string>
     <string name="title_enable_commit_text">Ativar envio de texto concluído (gesto/voz)</string>
     <string name="summary_enable_commit_text">Encaminha textos com vários caracteres de teclados virtuais (digitação por gestos, sugestões, ditado por voz). Pode causar problemas em jogos que dependem de entrada tecla por tecla.</string>
+
+    <!-- Overlay de desempenho do PyroWave -->
+    <string name="pw_overlay_video">PyroWave %1$dx%2$d  %3$.1f FPS  descartados %4$d</string>
+    <string name="pw_overlay_decode">Decodificação: %1$.1f ms</string>
+    <string name="pw_overlay_host">Codificação no host: %1$.1f ms</string>
+    <string name="pw_overlay_speed">Velocidade: %1$.1f Mbit/s</string>
+    <string name="pw_overlay_frame_size">Quadro: %1$d KB médio, %2$d KB máx.</string>
+    <string name="pw_overlay_loss">Perda: quadros %1$.1f%%, pacotes %2$.1f%%</string>
+    <string name="pw_overlay_rtt">Rede: %1$d ms (variação %2$d ms)</string>
+    <string name="pw_overlay_audio">Áudio: perdidos %1$d, recuperados %2$d, desistiu %3$d, falhas de buffer %4$d</string>
+    <string name="pw_overlay_wifi">Wi-Fi: %1$d Mbit/s, %2$d dBm</string>
+    <string name="pw_overlay_lite_speed">%1$.0f Mbit/s</string>
+    <string name="pw_overlay_lite_rtt">%1$d ms</string>
+    <string name="pw_overlay_lite_decode">dec %1$.1f ms</string>
+    <string name="pw_overlay_lite_loss">perda %1$.1f%%</string>
+    <string name="pw_overlay_lite_fps">%1$.0f FPS</string>
+    <string name="pw_overlay_lite_audio">áudio -%1$d</string>
+    <string name="pw_overlay_versions">Selene %1$s / Helios %2$s</string>
+    <string name="pw_overlay_unknown_host">desconhecido</string>
+    <string name="pw_event_started">Transmissão iniciada</string>
+    <string name="pw_event_poor">Conexão ruim</string>
+    <string name="pw_event_okay">Conexão normalizada</string>
+    <string name="pw_event_terminated">Conexão encerrada (erro %1$d)</string>
+    <string name="pw_event_stage_failed">%1$s falhou (erro %2$d)</string>
 </resources>
