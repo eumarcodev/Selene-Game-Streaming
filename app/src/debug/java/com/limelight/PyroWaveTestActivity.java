@@ -28,6 +28,7 @@ public class PyroWaveTestActivity extends Activity implements SurfaceHolder.Call
     public void surfaceCreated(SurfaceHolder holder) {
         final int w = getIntent().getIntExtra("w", 1920);
         final int h = getIntent().getIntExtra("h", 1080);
+        final int loss = getIntent().getIntExtra("loss", 0);
         final int frames = getIntent().getIntExtra("frames", 600);
         running = true;
         thread = new Thread(() -> {
@@ -39,7 +40,7 @@ public class PyroWaveTestActivity extends Activity implements SurfaceHolder.Call
             long start = System.nanoTime();
             int i = 0;
             while (running && i < frames) {
-                int r = PyroWaveNative.nativeSelfTestFrame(handle, i++);
+                int r = PyroWaveNative.nativeSelfTestFrame(handle, i++, loss);
                 if (r != 0) {
                     Log.e(TAG, "frame " + i + " result " + r);
                     if (r < 0) break;

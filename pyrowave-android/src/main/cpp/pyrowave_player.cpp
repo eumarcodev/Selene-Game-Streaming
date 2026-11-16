@@ -544,8 +544,10 @@ Player *create_player(JNIEnv *env, jobject surface, int width, int height, bool 
 // Returns 0 when presented, 1 when the frame was dropped, negative on errors.
 int decode_and_present(Player &p)
 {
-	// Complete frames only for now; partial frames are handled together with packet loss.
-	if (!pyrowave_decoder_decode_is_ready(p.decoder, false))
+	// A frame that lost packets is still decoded: the missing blocks just come out blurry. The lowest
+	// bands must be intact (otherwise the artifacts are extreme) and at least half of the blocks must
+	// have arrived, which is looser than the 90% of the plain partial-frame check.
+	if (!pyrowave_decoder_decode_is_ready_with_sideband(p.decoder, true, 1, 0.5f, nullptr, 0))
 	{
 		p.frames_dropped++;
 		return 1;
@@ -678,7 +680,7 @@ int decode_and_present(Player &p)
 
 // Encodes a moving test pattern with PyroWave itself, then runs it through the normal decode and present path.
 // Lets the presentation be verified on a device without a streaming server.
-int self_test_frame(Player &p, int frame)
+int self_test_frame(Player &p, int frame, int loss_percent)
 {
 	if (!p.test_encoder)
 	{
@@ -723,7 +725,7 @@ int self_test_frame(Player &p, int frame)
 	if (pyrowave_encoder_encode_cpu(p.test_encoder, &buf, &rc) != PYROWAVE_SUCCESS)
 		return -11;
 
-	const size_t boundary = 1u << 20;
+	const size_t boundary = loss_percent > 0 ? 1200 : (1u << 20);
 	size_t num = 0;
 	if (pyrowave_encoder_compute_num_packets(p.test_encoder, boundary, &num) != PYROWAVE_SUCCESS)
 		return -12;
@@ -734,8 +736,17 @@ int self_test_frame(Player &p, int frame)
 		return -13;
 	pyrowave_decoder_clear(p.decoder);
 	for (size_t i = 0; i < out; i++)
-		if (pyrowave_decoder_push_packet(p.decoder, stream.data() + packets[i].offset, packets[i].size) != PYROWAVE_SUCCESS)
+	{
+		// Simulated network loss. The first packet is kept: it carries the frame sequence header.
+		if (loss_percent > 0 && i > 0 && int((uint32_t(i) * 2654435761u + uint32_t(frame) * 40503u) % 100) < loss_percent)
+			continue;
+		pyrowave_result pr = pyrowave_decoder_push_packet(p.decoder, stream.data() + packets[i].offset, packets[i].size);
+		if (pr != PYROWAVE_SUCCESS)
+		{
+			LOGE("push_packet %zu/%zu (%zu bytes) failed: %d", i, out, packets[i].size, int(pr));
 			return 1;
+		}
+	}
 	return decode_and_present(p);
 }
 } // namespace
@@ -793,8 +804,8 @@ Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeFramesDropped(JNIEnv *,
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSelfTestFrame(JNIEnv *, jclass, jlong handle, jint frame)
+Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSelfTestFrame(JNIEnv *, jclass, jlong handle, jint frame, jint lossPercent)
 {
 	auto *p = reinterpret_cast<Player *>(handle);
-	return p ? self_test_frame(*p, frame) : -1;
+	return p ? self_test_frame(*p, frame, lossPercent) : -1;
 }
