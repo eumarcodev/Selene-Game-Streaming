@@ -217,6 +217,9 @@
     <string name="summary_checkbox_disable_warnings">Desativa as mensagens de aviso de conexão na tela durante a transmissão</string>
     <string name="title_disable_frame_drop">Nunca dropar quadros</string>
     <string name="summary_disable_frame_drop">Talvez reduza o micro-stuttering em alguns dispositivos, mas pode aumentar a latência</string>
+    <string name="title_enable_pyrowave">PyroWave (Experimental)</string>
+    <string name="summary_enable_pyrowave">Codec de baixa latência para conexões cabeadas ou Wi-Fi forte. Exige muita banda (cerca de 200 Mbps ou mais) e um host Helios com suporte a PyroWave. Volta aos codecs normais quando indisponível.</string>
+    <string name="summary_pyrowave_unsupported">Este dispositivo não suporta PyroWave: %1$s.</string>
     <string name="title_enable_hdr">Habilitar HDR (Experimental)</string>
     <string name="title_enable_post_stream_toast">Mostrar aviso de latência após terminar a transmissão</string>
     <string name="summary_enable_perf_overlay">Exibe informações de performance em tempo real durante a transmissão</string>
