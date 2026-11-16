@@ -3,6 +3,8 @@ package com.limelight.binding.video;
 import android.os.SystemClock;
 import android.view.Surface;
 
+import java.util.Locale;
+
 import com.eumarcodev.selene.pyrowave.PyroWaveNative;
 import com.limelight.nvstream.av.video.VideoDecoderRenderer;
 
@@ -20,6 +22,15 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     private int width, height;
     private long handle;
     private double averageDecodeMs = 10;
+
+    // Statistics for the performance overlay, reported once a second
+    private final PerfOverlayListener perfListener;
+    private long statsStartMs;
+    private int framesDecoded, framesSkipped;
+
+    public PyroWaveDecoderRenderer(PerfOverlayListener perfListener) {
+        this.perfListener = perfListener;
+    }
 
     public void setRenderTarget(Surface surface) {
         this.surface = surface;
@@ -68,11 +79,33 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         // instead of falling further behind. This is safe because every frame is intra-only.
         long start = SystemClock.uptimeMillis();
         if (start - enqueueTimeMs > Math.max(MIN_SKIP_AGE_MS, 2 * (long) averageDecodeMs)) {
-            return DR_OK;
+            framesSkipped++;
+        } else {
+            PyroWaveNative.nativeSubmitFrame(h, decodeUnitData, decodeUnitLength);
+            averageDecodeMs += (SystemClock.uptimeMillis() - start - averageDecodeMs) * 0.1;
+            framesDecoded++;
         }
-        PyroWaveNative.nativeSubmitFrame(h, decodeUnitData, decodeUnitLength);
-        averageDecodeMs += (SystemClock.uptimeMillis() - start - averageDecodeMs) * 0.1;
+        reportStats(SystemClock.uptimeMillis(), decodeUnitLength);
         return DR_OK;
+    }
+
+    private void reportStats(long now, int lastFrameBytes) {
+        if (perfListener == null) {
+            return;
+        }
+        if (statsStartMs == 0) {
+            statsStartMs = now;
+        }
+        long elapsed = now - statsStartMs;
+        if (elapsed < 1000) {
+            return;
+        }
+        perfListener.onPerfUpdate(String.format(Locale.US,
+                "PyroWave %dx%d  %.1f FPS  decode %.1f ms  skipped %d  frame %d KB",
+                width, height, framesDecoded * 1000.0 / elapsed, averageDecodeMs, framesSkipped, lastFrameBytes / 1024));
+        statsStartMs = now;
+        framesDecoded = 0;
+        framesSkipped = 0;
     }
 
     @Override
