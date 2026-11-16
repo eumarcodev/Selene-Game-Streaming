@@ -1,0 +1,96 @@
+name: Cut release or hotfix
+
+# Manual workflow that opens a release or hotfix branch and starts its first release candidate.
+#   release: creates release/X.Y from develop       (default X.Y: one minor above the latest stable)
+#   hotfix:  creates hotfix/X.Y.Z from master       (default X.Y.Z: next patch of the latest stable)
+# Pushes to those branches build release candidates (rc.yml); the stable release is a tag on master (stable.yml).
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: What to cut
+        type: choice
+        required: true
+        default: release
+        options:
+          - release
+          - hotfix
+      version:
+        description: "release: X.Y (e.g. 1.4). hotfix: X.Y.Z (e.g. 1.3.1). Empty uses the default."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KIND: ${{ inputs.kind }}
+      INPUT_VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout (full history, tags and branches)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create the branch
+        id: cut
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          latest=$( (git tag -l 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true) | sort -V | tail -1)
+          if [[ -n "${latest}" ]]; then
+            IFS=. read -r l_major l_minor l_patch <<< "${latest#v}"
+          fi
+
+          if [[ "${KIND}" == "release" ]]; then
+            if [[ -n "${INPUT_VERSION}" ]]; then
+              version="${INPUT_VERSION}"
+            elif [[ -n "${latest}" ]]; then
+              version="${l_major}.$((l_minor + 1))"
+            else
+              version="0.1"
+            fi
+            [[ "${version}" =~ ^[0-9]+\.[0-9]+$ ]] || fail "Release version must look like X.Y, got '${version}'"
+            branch="release/${version}"
+            source="origin/develop"
+            git rev-parse -q --verify "${source}" > /dev/null || fail "Branch develop does not exist"
+            git rev-parse -q --verify "refs/tags/v${version}.0" > /dev/null && fail "v${version}.0 is already released"
+          else
+            [[ -n "${latest}" ]] || fail "There is no stable release to fix yet"
+            if [[ -n "${INPUT_VERSION}" ]]; then
+              version="${INPUT_VERSION}"
+            else
+              version="${l_major}.${l_minor}.$((l_patch + 1))"
+            fi
+            [[ "${version}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || fail "Hotfix version must look like X.Y.Z, got '${version}'"
+            [[ "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}" == "${l_major}.${l_minor}" ]] ||
+              fail "Hotfixes only target the latest stable line (${l_major}.${l_minor}.x), got '${version}'"
+            [[ "${BASH_REMATCH[3]}" -gt 0 ]] || fail "Hotfix patch must be greater than 0, got '${version}'"
+            git rev-parse -q --verify "refs/tags/v${version}" > /dev/null && fail "v${version} already exists"
+            branch="hotfix/${version}"
+            source="origin/master"
+            git merge-base --is-ancestor "${latest}" "${source}" || fail "${latest} is not on master"
+          fi
+
+          git ls-remote --exit-code --heads origin "${branch}" > /dev/null 2>&1 && fail "Branch ${branch} already exists"
+
+          sha=$(git rev-parse "${source}")
+          git push origin "${sha}:refs/heads/${branch}"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+          echo "Created ${branch} from ${source} (${sha})" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Pushes made with the workflow token do not trigger other workflows, so start the first RC explicitly
+      - name: Start the first release candidate
+        env:
+          BRANCH: ${{ steps.cut.outputs.branch }}
+        run: |
+          set -euo pipefail
+          gh workflow run rc.yml --repo "${GITHUB_REPOSITORY}" --ref "${BRANCH}"
+          echo "Started rc.yml on ${BRANCH}" | tee -a "$GITHUB_STEP_SUMMARY"

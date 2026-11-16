@@ -11,8 +11,9 @@ android {
         minSdk 21
         targetSdk 34
 
-        versionName "20.2.6"
-        versionCode = 57
+        // CI passes -PversionName=1.2.3-rc.1 -PversionCode=N (see .github/RELEASING.md). Local builds use the defaults.
+        versionName (project.findProperty("versionName") ?: "0.0.0-dev")
+        versionCode = (project.findProperty("versionCode") ?: "1").toString().toInteger()
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
@@ -93,6 +94,18 @@ android {
         }
     }
 
+    signingConfigs {
+        // Only defined when the release keystore is provided (CI secrets or local env vars), see .github/RELEASING.md
+        if (System.getenv("SELENE_KEYSTORE_FILE")) {
+            release {
+                storeFile file(System.getenv("SELENE_KEYSTORE_FILE"))
+                storePassword System.getenv("SELENE_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("SELENE_KEY_ALIAS")
+                keyPassword System.getenv("SELENE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix ".debug"
@@ -109,6 +122,10 @@ android {
             resValue "string", "app_label", "Selene Game Streaming"
             resValue "string", "app_label_root", "Selene Game Streaming (Root)"
             resValue "string", "app_label_game", "Selene Game Streaming (Game)"
+
+            if (System.getenv("SELENE_KEYSTORE_FILE")) {
+                signingConfig signingConfigs.release
+            }
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

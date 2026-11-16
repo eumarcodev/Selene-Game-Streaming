@@ -1,0 +1,118 @@
+name: Build (Android)
+
+# Reusable workflow: builds the Selene Game Streaming APKs (nonRoot_game flavor, one per ABI) and uploads them as a
+# workflow artifact. Called by pr.yml, nightly.yml, rc.yml and stable.yml. It never publishes anything.
+# Releases are signed with the keystore stored in the repository secrets; pull request builds are not signed.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Version baked into the app and the file names, without the leading "v" (e.g. 1.3.0-rc.1)
+        type: string
+        required: true
+      ref:
+        description: Commit SHA to build (defaults to the commit that triggered the caller)
+        type: string
+        required: false
+        default: ""
+      sign:
+        description: Sign the APKs with the release keystore (fails if the secrets are missing)
+        type: boolean
+        required: false
+        default: false
+      artifact-name:
+        description: Name of the uploaded artifact
+        type: string
+        required: false
+        default: selene-android
+    secrets:
+      SELENE_KEYSTORE_BASE64:
+        required: false
+      SELENE_KEYSTORE_PASSWORD:
+        required: false
+      SELENE_KEY_ALIAS:
+        required: false
+      SELENE_KEY_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout (with submodules and history)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # ndkVersion in app/build.gradle must match the NDK installed here
+      - name: Install the Android NDK and platform
+        run: |
+          set -euo pipefail
+          ndk=$(grep -oP 'ndkVersion\s+"\K[^"]+' app/build.gradle)
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "ndk;${ndk}" "platforms;android-36"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Prepare the signing key
+        if: inputs.sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SELENE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.SELENE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SELENE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SELENE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [[ -n "${!v}" ]] || { echo "::error::The repository secret SELENE_${v} is not set"; exit 1; }
+          done
+          echo "${KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/selene-release.jks"
+          {
+            echo "SELENE_KEYSTORE_FILE=${RUNNER_TEMP}/selene-release.jks"
+            echo "SELENE_KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}"
+            echo "SELENE_KEY_ALIAS=${KEY_ALIAS}"
+            echo "SELENE_KEY_PASSWORD=${KEY_PASSWORD}"
+          } >> "$GITHUB_ENV"
+
+      # versionCode must grow with every build so that Android accepts the update: the number of commits works
+      # because nightly, RC and stable builds are always newer than the commits they were cut from.
+      - name: Build
+        run: |
+          set -euo pipefail
+          code=$(git rev-list --count HEAD)
+          ./gradlew assembleNonRoot_gameRelease --no-daemon -PversionName="${VERSION}" -PversionCode="${code}"
+
+      - name: Rename the APKs
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for apk in app/build/outputs/apk/nonRoot_game/release/app-nonRoot_game-*-release*.apk; do
+            abi=$(basename "${apk}" | sed -E 's/^app-nonRoot_game-(.*)-release.*\.apk$/\1/')
+            suffix=""
+            [[ "${apk}" == *-unsigned.apk ]] && suffix="-unsigned"
+            cp "${apk}" "dist/Selene-${VERSION}-nonRoot-${abi}${suffix}.apk"
+          done
+          ls -la dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: dist/*.apk
+          if-no-files-found: error
