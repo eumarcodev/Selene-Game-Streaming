@@ -14,6 +14,10 @@ public class StreamStatsSampler {
         public int videoPackets, videoPacketsLost;
         public int audioPackets, audioLost, audioRecovered, audioUnrecoverable;
         public int audioUnderruns;
+        // Dropped by the client because they came too late (queue overflow or catch-up), not network loss
+        public int audioDiscarded;
+        // Times audio stopped arriving and then came in a burst, and the longest such stall in the window
+        public int audioStalls, audioStallMaxMs;
 
         // Share of frames that arrived incomplete or not at all
         public float frameLossPercent() {
@@ -30,6 +34,7 @@ public class StreamStatsSampler {
     private long[] previous;
     private long previousMs;
     private int previousUnderruns;
+    private int previousSkipped;
 
     /**
      * @return the change since the previous call, or null on the first call or when the native counters are
@@ -64,6 +69,12 @@ public class StreamStatsSampler {
         int underruns = MoonBridge.getAudioUnderruns();
         s.audioUnderruns = Math.max(0, underruns - previousUnderruns);
         previousUnderruns = underruns;
+        int skipped = MoonBridge.getAudioFramesSkipped();
+        s.audioDiscarded = delta(current, last, MoonBridge.STREAM_STATS_AUDIO_PACKETS_DISCARDED)
+                + Math.max(0, skipped - previousSkipped);
+        previousSkipped = skipped;
+        s.audioStalls = delta(current, last, MoonBridge.STREAM_STATS_AUDIO_STALLS);
+        s.audioStallMaxMs = (int) current[MoonBridge.STREAM_STATS_AUDIO_STALL_MAX_MS];
         return s;
     }
 

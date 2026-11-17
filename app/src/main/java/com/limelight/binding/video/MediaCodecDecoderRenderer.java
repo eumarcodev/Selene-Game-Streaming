@@ -182,6 +182,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private String minDecodeTimeFullLog = "";
 
     private long lastNetDataNum;
+    private final StreamStatsSampler audioStatsSampler = new StreamStatsSampler();
     private LinkedBlockingQueue<Integer> outputBufferQueue = new LinkedBlockingQueue<>();
     private static final int OUTPUT_BUFFER_QUEUE_LIMIT = 2;
     private long lastRenderedFrameTimeNanos;
@@ -1874,6 +1875,21 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                 (float)lastTwo.totalHostProcessingLatency / 10 / lastTwo.framesWithHostProcessingLatency)).append('\n');
                     }
                     sb.append(context.getString(R.string.perf_overlay_dectime, decodeTimeMs));
+                }
+
+                // Audio health, same counters as the PyroWave overlay (Selene #54)
+                StreamStatsSampler.Sample audio = audioStatsSampler.sample(SystemClock.uptimeMillis());
+                if (audio != null) {
+                    if (prefs.enablePerfOverlayLite) {
+                        if (audio.audioStalls > 0) {
+                            sb.append("\t").append(context.getString(R.string.pw_overlay_lite_audio_stall, audio.audioStallMaxMs));
+                        }
+                    } else {
+                        sb.append('\n').append(context.getString(R.string.pw_overlay_audio,
+                                audio.audioLost, audio.audioRecovered, audio.audioUnrecoverable, audio.audioUnderruns));
+                        sb.append('\n').append(context.getString(R.string.pw_overlay_audio_late,
+                                audio.audioStalls, audio.audioStallMaxMs, audio.audioDiscarded));
+                    }
                 }
                 String fullLog = sb.toString();
                 if(prefs.enablePerfOverlay) {
