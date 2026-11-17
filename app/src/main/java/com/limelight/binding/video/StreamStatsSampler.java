@@ -40,7 +40,7 @@ public class StreamStatsSampler {
      * @return the change since the previous call, or null on the first call or when the native counters are
      * not available (no connection yet).
      */
-    public Sample sample(long nowMs) {
+    public synchronized Sample sample(long nowMs) {
         long[] current = MoonBridge.getStreamStats();
         if (current == null || current.length < MoonBridge.STREAM_STATS_COUNT) {
             return null;

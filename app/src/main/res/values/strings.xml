@@ -766,7 +766,8 @@
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
 
     <!-- PyroWave performance overlay -->
-    <string name="pw_overlay_video">PyroWave %1$dx%2$d  %3$.1f FPS  skipped %4$d</string>
+    <string name="pw_overlay_video">%1$s %2$dx%3$d  %4$.1f FPS  skipped %5$d</string>
+    <string name="overlay_video_received">%1$s %2$dx%3$d  %4$.1f FPS (received %5$.1f)</string>
     <string name="pw_overlay_decode">Decode: %1$.1f ms</string>
     <string name="pw_overlay_host">Host encode: %1$.1f ms</string>
     <string name="pw_overlay_gpu">GPU: decode %1$.1f ms, present pass %2$.1f ms</string>

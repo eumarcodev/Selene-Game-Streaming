@@ -275,7 +275,8 @@
     <string name="summary_enable_commit_text">Encaminha textos com vários caracteres de teclados virtuais (digitação por gestos, sugestões, ditado por voz). Pode causar problemas em jogos que dependem de entrada tecla por tecla.</string>
 
     <!-- Overlay de desempenho do PyroWave -->
-    <string name="pw_overlay_video">PyroWave %1$dx%2$d  %3$.1f FPS  descartados %4$d</string>
+    <string name="pw_overlay_video">%1$s %2$dx%3$d  %4$.1f FPS  descartados %5$d</string>
+    <string name="overlay_video_received">%1$s %2$dx%3$d  %4$.1f FPS (recebidos %5$.1f)</string>
     <string name="pw_overlay_decode">Decodificação: %1$.1f ms</string>
     <string name="pw_overlay_host">Codificação no host: %1$.1f ms</string>
     <string name="pw_overlay_gpu">GPU: decodificação %1$.1f ms, apresentação %2$.1f ms</string>
