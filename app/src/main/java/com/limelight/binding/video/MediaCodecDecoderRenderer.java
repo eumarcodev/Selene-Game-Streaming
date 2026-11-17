@@ -553,6 +553,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, refreshRate);
         }
 
+        // Some decoders (MediaTek) default to a 2 MB input buffer at 1080p, smaller than an IDR frame of a
+        // busy screen at a high bitrate. Ask for the size of a raw frame, which a coded frame never needs.
+        videoFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, Math.max(2 * 1024 * 1024, initialWidth * initialHeight * 2));
+
         // Populate keys for adaptive playback
         if (adaptivePlayback) {
             videoFormat.setInteger(MediaFormat.KEY_MAX_WIDTH, initialWidth);
@@ -2288,13 +2292,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         numFramesIn++;
 
         if (decodeUnitLength > nextInputBuffer.limit() - nextInputBuffer.position()) {
-            IllegalArgumentException exception = new IllegalArgumentException(
-                    "Decode unit length "+decodeUnitLength+" too large for input buffer "+nextInputBuffer.limit());
-            if (!reportedCrash) {
-                reportedCrash = true;
-                crashListener.notifyCrash(exception);
-            }
-            throw new RendererException(this, exception);
+            // Drop the frame and ask for a new IDR frame instead of ending the stream: the next frames
+            // are usually much smaller than the one that overflowed.
+            LimeLog.warning("Decode unit length "+decodeUnitLength+" too large for input buffer "+nextInputBuffer.limit()+", dropping it");
+            nextInputBuffer.clear();
+            return MoonBridge.DR_NEED_IDR;
         }
 
         // Copy data from our buffer list into the input buffer
