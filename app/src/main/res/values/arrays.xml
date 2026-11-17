@@ -60,6 +60,40 @@
         <item>512</item>
         <item>1024</item>
     </string-array>
+    <string-array name="pyrowave_bitrate_names">
+        <item>@string/pyrowave_bitrate_auto</item>
+        <item>@string/pyrowave_bitrate_same</item>
+        <item>40 Mbit/s</item>
+        <item>60 Mbit/s</item>
+        <item>80 Mbit/s</item>
+        <item>100 Mbit/s</item>
+        <item>120 Mbit/s</item>
+        <item>150 Mbit/s</item>
+        <item>200 Mbit/s</item>
+        <item>250 Mbit/s</item>
+    </string-array>
+    <string-array name="pyrowave_bitrate_values" translatable="false">
+        <item>0</item>
+        <item>-1</item>
+        <item>40000</item>
+        <item>60000</item>
+        <item>80000</item>
+        <item>100000</item>
+        <item>120000</item>
+        <item>150000</item>
+        <item>200000</item>
+        <item>250000</item>
+    </string-array>
+    <string-array name="pyrowave_static_boost_names">
+        <item>@string/pyrowave_static_boost_host</item>
+        <item>@string/pyrowave_static_boost_on</item>
+        <item>@string/pyrowave_static_boost_off</item>
+    </string-array>
+    <string-array name="pyrowave_static_boost_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
 
     <string-array name="fps_names">
         <item>@string/fps_30</item>

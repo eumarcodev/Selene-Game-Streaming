@@ -148,6 +148,9 @@ public class StreamOverlayFormatter {
             append(sb, context.getString(R.string.pw_overlay_audio_late, net.audioStalls, net.audioStallMaxMs, net.audioDiscarded), lateColor);
             sb.append('\n');
         }
+        if (v.stageMs != null && MoonBridge.pyroWaveBitratePref > 0) {
+            sb.append(context.getString(R.string.pw_overlay_bitrate, MoonBridge.pyroWaveBitratePref / 1000)).append('\n');
+        }
         if (MoonBridge.pyroWavePacketSizePref > 0 || MoonBridge.pyroWaveMaxFrameKbPref > 0) {
             String packet = MoonBridge.pyroWavePacketSizePref > 0 ? MoonBridge.pyroWavePacketSizePref + " B"
                     : context.getString(R.string.pw_overlay_pref_auto);
