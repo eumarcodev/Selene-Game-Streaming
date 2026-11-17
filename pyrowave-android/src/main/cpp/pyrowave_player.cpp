@@ -10,6 +10,7 @@
 #include <jni.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/system_properties.h>
 #include <chrono>
 #include <mutex>
 #include <vector>
@@ -443,6 +444,17 @@ Player *create_player(JNIEnv *env, jobject surface, int width, int height, bool 
 	}
 	pyrowave_device_get_vk_device_handles(p->device, &p->instance, &p->gpu, &p->vk);
 	p->fragment_path = pyrowave_decoder_device_prefers_fragment_path(p->device);
+	// Debug switch to compare the two decode paths on a device:
+	// adb shell setprop debug.selene.pyrowave.path compute|fragment (empty = what PyroWave prefers)
+	char path_override[PROP_VALUE_MAX] = {};
+	if (__system_property_get("debug.selene.pyrowave.path", path_override) > 0)
+	{
+		if (!strcmp(path_override, "compute"))
+			p->fragment_path = false;
+		else if (!strcmp(path_override, "fragment"))
+			p->fragment_path = true;
+		LOGI("Decode path forced by debug.selene.pyrowave.path=%s", path_override);
+	}
 	pyrowave_device_set_queue_type(p->device, VK_QUEUE_GRAPHICS_BIT);
 
 	VkAndroidSurfaceCreateInfoKHR asci = { VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR };
