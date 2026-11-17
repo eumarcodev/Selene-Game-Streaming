@@ -6,7 +6,10 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jcodec.codecs.h264.H264Utils;
@@ -178,11 +181,18 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private int refreshRate;
     private PreferenceConfiguration prefs;
 
-    private float minDecodeTime = Float.MAX_VALUE;
-    private String minDecodeTimeFullLog = "";
+    private volatile float minDecodeTime = Float.MAX_VALUE;
+    private volatile String minDecodeTimeFullLog = "";
 
     private long lastNetDataNum;
     private final StreamStatsSampler audioStatsSampler = new StreamStatsSampler();
+    // Same overlay as PyroWave (Selene #57). The text is built on overlayExecutor, never on the decode thread.
+    private final StreamOverlayFormatter overlayFormatter;
+    private ExecutorService overlayExecutor;
+    // Per-window frame size and arrival counters, only touched by the thread that calls submitDecodeUnit
+    private long windowFrameBytes, currentFrameBytes;
+    private int windowFrames, windowMaxFrameBytes;
+    private long lastArrivalMs, arrivalCount, arrivalSumMs, arrivalSumSqMs, arrivalMaxMs;
     private LinkedBlockingQueue<Integer> outputBufferQueue = new LinkedBlockingQueue<>();
     private static final int OUTPUT_BUFFER_QUEUE_LIMIT = 2;
     private long lastRenderedFrameTimeNanos;
@@ -377,6 +387,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         this.glRenderer = glRenderer;
         this.perfListener = perfListener;
         this.invertResolution = invertResolution;
+        this.overlayFormatter = prefs.enablePerfOverlay || prefs.enablePerfLogging
+                ? new StreamOverlayFormatter(activity, prefs.enablePerfOverlayLite) : null;
 
         this.activeWindowVideoStats = new VideoStats();
         this.lastWindowVideoStats = new VideoStats();
@@ -1644,7 +1656,86 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     @Override
     public void cleanup() {
+        ExecutorService executor = overlayExecutor;
+        overlayExecutor = null;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
         videoDecoder.release();
+    }
+
+    /**
+     * Snapshots the window counters on the decode thread (cheap) and builds the overlay text on its own
+     * thread: the formatter makes JNI calls and asks the Wi-Fi service for the link, which must not delay
+     * the next frame.
+     */
+    private void postOverlay(VideoStats lastTwo, VideoStatsFps fps, String decoder, float decodeTimeMs) {
+        final StreamOverlayFormatter.VideoInfo info = new StreamOverlayFormatter.VideoInfo();
+        if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
+            info.codec = "H.264";
+        } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H265) != 0) {
+            info.codec = "HEVC";
+        } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_AV1) != 0) {
+            info.codec = "AV1";
+        } else {
+            info.codec = "Video";
+        }
+        info.decoderName = decoder;
+        info.width = initialWidth;
+        info.height = initialHeight;
+        info.fps = fps.totalFps;
+        info.receivedFps = fps.receivedFps;
+        info.decodeMs = decodeTimeMs;
+        info.decodeBlocks = false;
+        info.targetMbps = prefs.bitrate / 1000f;
+        if (lastTwo.framesWithHostProcessingLatency > 0) {
+            info.hostLatencyMs = (float) lastTwo.totalHostProcessingLatency / 10 / lastTwo.framesWithHostProcessingLatency;
+        }
+        if (windowFrames > 0) {
+            info.avgFrameKb = (int) (windowFrameBytes / windowFrames / 1024);
+            info.maxFrameKb = windowMaxFrameBytes / 1024;
+        }
+        if (arrivalCount > 1) {
+            double mean = (double) arrivalSumMs / arrivalCount;
+            double variance = (double) arrivalSumSqMs / arrivalCount - mean * mean;
+            info.arrivalJitterMs = (float) Math.sqrt(Math.max(0, variance));
+            info.arrivalMaxGapMs = (int) arrivalMaxMs;
+        }
+        final boolean targetFpsMatched = (int) fps.totalFps == (int) prefs.fps;
+
+        if (overlayExecutor == null) {
+            overlayExecutor = Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "Overlay");
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+        }
+        try {
+            overlayExecutor.execute(() -> {
+                try {
+                    CharSequence text = overlayFormatter.format(info, audioStatsSampler.sample(SystemClock.uptimeMillis()));
+                    if (prefs.enablePerfOverlay) {
+                        perfListener.onPerfUpdate(text);
+                    }
+                    // Best latency is only met at requested highest fps, rest can be ignored
+                    if (minDecodeTime > info.decodeMs && targetFpsMatched) {
+                        minDecodeTime = info.decodeMs;
+                        minDecodeTimeFullLog = text.toString();
+                    }
+                } catch (RuntimeException e) {
+                    // The overlay must never take the stream down
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            // Stopping
+        }
+    }
+
+    private void resetOverlayWindow() {
+        windowFrameBytes = 0;
+        windowFrames = 0;
+        windowMaxFrameBytes = 0;
+        arrivalCount = arrivalSumMs = arrivalSumSqMs = arrivalMaxMs = 0;
     }
 
     @Override
@@ -1751,6 +1842,25 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             return MoonBridge.DR_OK;
         }
 
+        if (frameNumber != lastFrameNumber) {
+            // A new frame: close the size of the previous one and measure the time since it arrived
+            if (currentFrameBytes > 0) {
+                windowFrameBytes += currentFrameBytes;
+                windowFrames++;
+                windowMaxFrameBytes = (int) Math.max(windowMaxFrameBytes, currentFrameBytes);
+            }
+            currentFrameBytes = 0;
+            if (lastArrivalMs != 0 && receiveTimeMs >= lastArrivalMs) {
+                long gap = receiveTimeMs - lastArrivalMs;
+                arrivalCount++;
+                arrivalSumMs += gap;
+                arrivalSumSqMs += gap * gap;
+                arrivalMaxMs = Math.max(arrivalMaxMs, gap);
+            }
+            lastArrivalMs = receiveTimeMs;
+        }
+        currentFrameBytes += decodeUnitLength;
+
         if (lastFrameNumber == 0) {
             activeWindowVideoStats.measurementStartTimestamp = SystemClock.uptimeMillis();
         } else if (frameNumber != lastFrameNumber && frameNumber != lastFrameNumber + 1) {
@@ -1790,6 +1900,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 }
 
                 float decodeTimeMs = (float)lastTwo.decoderTimeMs / lastTwo.totalFramesReceived;
+                if (overlayFormatter != null && !Stereo3DRenderer.isActive) {
+                    postOverlay(lastTwo, fps, decoder, decodeTimeMs);
+                } else {
                 long rttInfo = MoonBridge.getEstimatedRttInfo();
                 StringBuilder sb = new StringBuilder();
                 if(prefs.enablePerfOverlayLite){
@@ -1901,7 +2014,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     minDecodeTime = decodeTimeMs;
                     minDecodeTimeFullLog = fullLog;
                 }
+                }
             }
+            resetOverlayWindow();
             globalVideoStats.add(activeWindowVideoStats);
             lastWindowVideoStats.copy(activeWindowVideoStats);
             activeWindowVideoStats.clear();

@@ -36,7 +36,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     // Statistics for the performance overlay, reported once a second by a timer so the overlay keeps
     // updating (and shows the loss) even when no frame arrives. Written by the decoder thread.
     private final PerfOverlayListener perfListener;
-    private final PyroWaveOverlayFormatter overlayFormatter;
+    private final StreamOverlayFormatter overlayFormatter;
     private final StreamStatsSampler statsSampler = new StreamStatsSampler();
     private final float targetMbps;
     private final String latencyPolicy;
@@ -70,7 +70,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         this.latencyPolicy = latencyPolicy != null ? latencyPolicy : POLICY_LOWEST;
         this.customSkipAgeMs = customSkipAgeMs;
         this.perfListener = perfListener;
-        this.overlayFormatter = context != null ? new PyroWaveOverlayFormatter(context, lite) : null;
+        this.overlayFormatter = context != null ? new StreamOverlayFormatter(context, lite) : null;
         this.targetMbps = bitrateKbps / 1000f;
     }
 
@@ -197,7 +197,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             statsStartMs = now;
 
             int seen = framesSeen.getAndSet(0);
-            PyroWaveOverlayFormatter.VideoInfo info = new PyroWaveOverlayFormatter.VideoInfo();
+            StreamOverlayFormatter.VideoInfo info = new StreamOverlayFormatter.VideoInfo();
             info.width = width;
             info.height = height;
             info.fps = framesDecoded.getAndSet(0) * 1000f / elapsed;
