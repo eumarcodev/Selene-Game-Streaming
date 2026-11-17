@@ -9,7 +9,8 @@ android {
 
     defaultConfig {
         minSdk 21
-        targetSdk 34
+        // Google Play requires API 36 for new apps and updates since 2026-08-31.
+        targetSdk 36
 
         // CI passes -PversionName=1.2.3-rc.1 -PversionCode=N (see .github/RELEASING.md). Local builds use the defaults.
         versionName (project.findProperty("versionName") ?: "0.0.0-dev")
@@ -37,13 +38,10 @@ android {
                 }
             }
 
-            resValue "string",
-                    "obtainium_app_url",
-                    "data:text/html;base64,PGgxPlJvb3QgYnVpbGQgaXMgbm90IGF2YWlsYWJsZTwvaDE+"
-
             applicationId "com.eumarcodev.selene.root"
             dimension "root"
             buildConfigField "boolean", "ROOT_BUILD", "true"
+            buildConfigField "boolean", "PLAY_BUILD", "false"
         }
 
         nonRoot_game {
@@ -53,13 +51,33 @@ android {
                 }
             }
 
-            resValue "string",
-                    "obtainium_app_url",
-                    "https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.eumarcodev.selene%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Feumarcodev%2FSelene-Game-Streaming%22%2C%22author%22%3A%22eumarcodev%22%2C%22name%22%3A%22Selene%20Game%20Streaming%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22nonRoot%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D"
+            applicationId "com.eumarcodev.selene"
+            dimension "root"
+            buildConfigField "boolean", "ROOT_BUILD", "false"
+            buildConfigField "boolean", "PLAY_BUILD", "false"
+        }
+
+        // Google Play build: same app as nonRoot_game (same id and signing key, so users can move between
+        // the GitHub APK and the Play version without reinstalling), but without the link to the GitHub
+        // releases page, since Play policy does not allow pointing users to another update channel.
+        // Published as an AAB, see .github/RELEASING.md.
+        nonRoot_play {
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "PRODUCT_FLAVOR=nonRoot"
+                }
+            }
 
             applicationId "com.eumarcodev.selene"
             dimension "root"
             buildConfigField "boolean", "ROOT_BUILD", "false"
+            buildConfigField "boolean", "PLAY_BUILD", "true"
+        }
+    }
+
+    sourceSets {
+        nonRoot_play {
+            manifest.srcFile 'src/nonRoot_game/AndroidManifest.xml'
         }
     }
 

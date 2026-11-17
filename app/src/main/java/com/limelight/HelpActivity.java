@@ -12,6 +12,7 @@ import android.window.OnBackInvokedDispatcher;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.limelight.utils.SpinnerDialog;
+import com.limelight.utils.UiHelper;
 
 public class HelpActivity extends AppCompatActivity {
 
@@ -40,6 +41,7 @@ public class HelpActivity extends AppCompatActivity {
 
         webView = new WebView(this);
         setContentView(webView);
+        UiHelper.applySystemBarInsets(this, true);
 
         // These allow the user to zoom the page
         webView.getSettings().setBuiltInZoomControls(true);

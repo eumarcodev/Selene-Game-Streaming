@@ -1,0 +1,75 @@
+name: Publish to Google Play
+
+# Reusable workflow: uploads the Play bundle (AAB of the nonRoot_play flavor, built by build.yml with
+# play-bundle: true) to a Google Play track. Called by rc.yml and stable.yml only when the repository variable
+# PLAY_PUBLISHING is "true". Setup and variables: .github/RELEASING.md, section "Google Play".
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Version of the build, without the leading "v" (e.g. 1.4.0 or 1.4.0-rc.2)
+        type: string
+        required: true
+      track:
+        description: Play track (production, beta, alpha, internal or a custom closed track)
+        type: string
+        required: true
+      status:
+        description: Release status (completed, inProgress, draft or halted)
+        type: string
+        required: false
+        default: completed
+      user-fraction:
+        description: Staged rollout fraction (e.g. 0.2), only used with status inProgress
+        type: string
+        required: false
+        default: ""
+      artifact-name:
+        description: Name of the artifact uploaded by build.yml (the Play bundle is in "<name>-play")
+        type: string
+        required: false
+        default: selene-android
+    secrets:
+      PLAY_SERVICE_ACCOUNT_JSON:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    name: Upload to Google Play (${{ inputs.track }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check the service account
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          [[ -n "${PLAY_SERVICE_ACCOUNT_JSON}" ]] ||
+            { echo "::error::The repository secret PLAY_SERVICE_ACCOUNT_JSON is not set"; exit 1; }
+
+      - name: Download the Play bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact-name }}-play
+          path: play
+
+      - name: Upload
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.eumarcodev.selene
+          releaseFiles: play/*.aab
+          releaseName: ${{ inputs.version }}
+          track: ${{ inputs.track }}
+          status: ${{ inputs.status }}
+          userFraction: ${{ inputs.user-fraction }}
+          mappingFile: play/mapping.txt
+
+      - name: Summary
+        env:
+          VERSION: ${{ inputs.version }}
+          TRACK: ${{ inputs.track }}
+          STATUS: ${{ inputs.status }}
+        run: echo "Selene ${VERSION} uploaded to the Google Play track '${TRACK}' (status ${STATUS})." >> "$GITHUB_STEP_SUMMARY"
