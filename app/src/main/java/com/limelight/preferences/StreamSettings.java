@@ -644,11 +644,15 @@ public class StreamSettings extends AppCompatActivity {
                 if (policyPref != null && skipAgePref != null) {
                     final Preference packetPref = findPreference("list_pyrowave_packet_size");
                     final Preference maxFramePref = findPreference("list_pyrowave_max_frame_kb");
+                    final Preference bitratePref = findPreference("list_pyrowave_bitrate");
+                    final Preference staticBoostPref = findPreference("list_pyrowave_static_boost");
                     if (reason != null) {
                         policyPref.setEnabled(false);
                         skipAgePref.setEnabled(false);
                         if (packetPref != null) packetPref.setEnabled(false);
                         if (maxFramePref != null) maxFramePref.setEnabled(false);
+                        if (bitratePref != null) bitratePref.setEnabled(false);
+                        if (staticBoostPref != null) staticBoostPref.setEnabled(false);
                     } else {
                         // The skip age is only used by the custom policy
                         skipAgePref.setEnabled("custom".equals(((ListPreference) policyPref).getValue()));

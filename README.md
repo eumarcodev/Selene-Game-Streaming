@@ -93,11 +93,48 @@ The recordings below are 60 second tests with a game-like load: full-screen nois
 | | |
 |---|---|
 | **Host PC** | AMD Ryzen 7 5700X, AMD Radeon RX 9070 XT (driver 32.0.32015.16001), 32 GB RAM, Windows 11 Pro (build 26340) |
-| **Host software** | Helios 1.7.0, HEVC encoder `hevc_amf`, virtual display 1920x1080 at 60 Hz |
+| **Host software** | Helios 1.7 / 1.8 (still screen boost), HEVC encoder `hevc_amf`, virtual display 1920x1080 at 60 Hz |
 | **Client** | Xiaomi Redmi Pad 2 (MediaTek MT8781, Mali-G57 MC2, 8 GB RAM), HyperOS 3.0 (Android 16), decoder `c2.mtk.hevc.decoder` |
-| **Client software** | Selene 1.4.0 with the shared overlay (Selene #57) |
+| **Client software** | Selene 1.5 (overlay recordings), Selene 1.6 (PyroWave quality) |
 | **Network** | Host wired at 1 Gbit/s to the router; tablet on Wi-Fi 5 (802.11ac), 5 GHz channel 149, link 433 Mbit/s, RSSI -22 dBm, less than 1 m from the router |
 | **Stream** | 1920x1080, 60 FPS, 60 Mbit/s, stereo audio |
+
+### PyroWave picture quality
+
+PyroWave codes every frame on its own, which gives the lowest latency, but at the same bitrate it is less sharp than HEVC. Measured on the setup above with a real game frame and a text panel (tablet screenshots compared with the original, higher is better):
+
+| Setting | Text, still (SSIM) | Game, still (PSNR) | Text, scrolling (SSIM) |
+|---|---|---|---|
+| HEVC, 60 Mbit/s | 0.964 | 41.6 dB | 0.959 |
+| PyroWave, 60 Mbit/s | 0.943 | 36.0 dB | 0.942 |
+| PyroWave, 150 Mbit/s | 0.957 | 38.9 dB | 0.953 |
+| **PyroWave, 150 Mbit/s + sharper still screen** | **0.964** | **42.2 dB** | 0.953 |
+
+So Selene now uses its own bitrate for PyroWave streams (**PyroWave bitrate**, Automatic = 2.5 times the video bitrate, up to 150 Mbit/s), and asks a Helios host to sharpen still pictures (**Sharper still screen**). At 150 Mbit/s this Wi-Fi 5 link carried 141 to 152 Mbit/s at 60 FPS with 0% loss and no audio stall.
+
+### Recommended settings
+
+| Network | Codec and bitrate |
+|---|---|
+| Wired, or Wi-Fi 5/6 with a link of 400 Mbit/s or more and RSSI above -60 dBm (measured) | PyroWave with "PyroWave bitrate: Automatic" (150 Mbit/s) for the lowest latency, or HEVC 60 Mbit/s |
+| Wi-Fi 5 with a weaker link (200 to 400 Mbit/s, or RSSI -60 to -70 dBm) | PyroWave 60 to 100 Mbit/s, or HEVC 30 to 50 Mbit/s |
+| Wi-Fi 2.4 GHz, a far access point or a busy network | HEVC 15 to 30 Mbit/s |
+| Remote (internet) | HEVC or AV1 at what the upload allows; PyroWave is not meant for this |
+
+Leave "Sharper still screen" on "Host setting" and "Maximum frame size" / "packet size" on automatic unless the overlay shows loss. The Wi-Fi line of the overlay shows your link speed and signal.
+
+### Troubleshooting with the overlay
+
+| Symptom | Overlay | What to try |
+|---|---|---|
+| Audio cuts | "Late audio" stalls of 150-200 ms | Selene 1.4 and Helios 1.7 or later; keep the Helios `audio_qos` option on `video` |
+| Short freezes only when the screen barely moves | stalls and "longest gap" of ~140 ms, no loss | Wi-Fi power saving of some devices (#56); keep the device charging, motion makes it go away |
+| PyroWave blurry | "PyroWave bitrate" low, "Speed" well below it | Raise "PyroWave bitrate", keep "Sharper still screen" on |
+| Picture breaks up at high bitrates | "Loss" above 1% | Lower "PyroWave bitrate" (100, then 60), then try "Maximum frame size" 256 KB |
+| Stutter without loss | "Frame arrival" jitter above ~10 ms | Use 5 GHz, get closer to the router, avoid other heavy traffic |
+| PyroWave can't keep up | "Decode" in red, "skipped" frames | Lower the resolution or use HEVC |
+
+The full guide, with the host settings, is in Helios: [docs/streaming-guide.md](https://github.com/eumarcodev/Helios-Server/blob/master/docs/streaming-guide.md).
 
 # About this fork
 

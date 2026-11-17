@@ -73,6 +73,11 @@ public class PreferenceConfiguration {
     private static final String PYROWAVE_SKIP_AGE_PREF_STRING = "seekbar_pyrowave_skip_age_ms";
     private static final String PYROWAVE_PACKET_SIZE_PREF_STRING = "list_pyrowave_packet_size";
     private static final String PYROWAVE_MAX_FRAME_PREF_STRING = "list_pyrowave_max_frame_kb";
+    private static final String PYROWAVE_BITRATE_PREF_STRING = "list_pyrowave_bitrate";
+    private static final String PYROWAVE_STATIC_BOOST_PREF_STRING = "list_pyrowave_static_boost";
+    // Automatic PyroWave bitrate: this many times the video bitrate, up to PYROWAVE_AUTO_MAX_KBPS
+    public static final float PYROWAVE_AUTO_FACTOR = 2.5f;
+    public static final int PYROWAVE_AUTO_MAX_KBPS = 150000;
     private static final String ENABLE_PIP_PREF_STRING = "checkbox_enable_pip";
     private static final String ENABLE_PERF_OVERLAY_STRING = "checkbox_enable_perf_overlay";
     private static final String ENABLE_PERF_LOGGING = "checkbox_enable_perf_logging";
@@ -281,6 +286,10 @@ public class PreferenceConfiguration {
     // Asked of the host: largest PyroWave packet in bytes (0 = host decides) and cap on one frame in KB (0 = none)
     public int pyroWavePacketSize;
     public int pyroWaveMaxFrameKb;
+    // PyroWave bitrate in kbps: 0 automatic, -1 same as the video bitrate, otherwise the value
+    public int pyroWaveBitrate;
+    // Still screen boost: 0 host setting, 1 on, 2 off
+    public int pyroWaveStaticBoost;
     public boolean enablePip;
 
     public float parallax_depth;
@@ -952,6 +961,8 @@ private static int getFramePacingValue(Context context) {
         config.pyroWaveSkipAgeMs = prefs.getInt(PYROWAVE_SKIP_AGE_PREF_STRING, 30);
         config.pyroWavePacketSize = parseIntPref(prefs.getString(PYROWAVE_PACKET_SIZE_PREF_STRING, "0"));
         config.pyroWaveMaxFrameKb = parseIntPref(prefs.getString(PYROWAVE_MAX_FRAME_PREF_STRING, "0"));
+        config.pyroWaveBitrate = parseIntPref(prefs.getString(PYROWAVE_BITRATE_PREF_STRING, "0"));
+        config.pyroWaveStaticBoost = parseIntPref(prefs.getString(PYROWAVE_STATIC_BOOST_PREF_STRING, "0"));
         config.enablePip = prefs.getBoolean(ENABLE_PIP_PREF_STRING, DEFAULT_ENABLE_PIP);
         config.enablePerfOverlay = prefs.getBoolean(ENABLE_PERF_OVERLAY_STRING, DEFAULT_ENABLE_PERF_OVERLAY);
         config.enablePerfLogging = prefs.getBoolean(ENABLE_PERF_LOGGING, DEFAULT_ENABLE_PERF_LOGGING);

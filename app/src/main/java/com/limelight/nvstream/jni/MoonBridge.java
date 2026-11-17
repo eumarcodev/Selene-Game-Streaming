@@ -144,6 +144,19 @@ public class MoonBridge {
     }
     private static native void setPyroWavePrefsNative(int packetSize, int maxFrameKb);
 
+    // PyroWave bitrate in kbps used for this stream (0 = same as the video bitrate), shown in the overlay
+    public static volatile int pyroWaveBitratePref;
+
+    /**
+     * PyroWave picture quality: bitrate used instead of the video bitrate when the stream is PyroWave (0 keeps it)
+     * and the still screen boost (0 host setting, 1 on, 2 off). Call before the connection starts.
+     */
+    public static void setPyroWaveQualityPrefs(int bitrateKbps, int staticBoost) {
+        pyroWaveBitratePref = bitrateKbps;
+        setPyroWaveQualityPrefsNative(bitrateKbps, staticBoost);
+    }
+    private static native void setPyroWaveQualityPrefsNative(int bitrateKbps, int staticBoost);
+
     // Times the Android audio output ran dry since the stream started (0 when not known)
     public static int getAudioUnderruns() {
         AudioRenderer renderer = audioRenderer;
