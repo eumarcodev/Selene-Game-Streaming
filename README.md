@@ -66,6 +66,39 @@ If you switch back to the main stream version, you'll be missing the following a
 30. Clipboard sync (requires Helios or Apollo)
 31. SBS 3D for external Displays (Using AI MiDaS v2 Lite)
 
+# Performance overlay
+
+The performance overlay shows the same information for every codec (H.264, HEVC, AV1 and PyroWave): app and host versions, decoder, decode and host encode time, frame arrival jitter, speed and frame size, packet and frame loss, network latency, audio loss and late audio. PyroWave adds its GPU and CPU stage times. The text is built on its own thread, so turning the overlay on does not slow down the decoder.
+
+The recordings below are 60 second tests with a game-like load: full-screen noise that changes every frame (high bitrate) and a frame counter ([`docs/media/game_load.py`](docs/media/game_load.py)). They show one frame per second, the rate at which the overlay updates.
+
+| HEVC | PyroWave |
+|---|---|
+| ![HEVC overlay, 60 s test](docs/media/overlay-hevc.gif) | ![PyroWave overlay, 60 s test](docs/media/overlay-pyrowave.gif) |
+
+### Results (60 s, 1920x1080, 60 FPS, 60 Mbit/s requested)
+
+| | HEVC | PyroWave |
+|---|---|---|
+| Speed | 56.8 Mbit/s | 47.8 Mbit/s |
+| Frames | 60.1 FPS received | 57.5 FPS |
+| Frame arrival | jitter 2.7 ms, longest gap 26 ms | jitter 6.8 ms, longest gap 34 ms |
+| Video loss | 0.0% | 0.0% |
+| Network latency | 3 ms | 4 ms |
+| Audio loss | 0 | 0 |
+| Late audio | 4 stalls of 31-32 ms | 3 stalls of 31-33 ms |
+
+### Test setup
+
+| | |
+|---|---|
+| **Host PC** | AMD Ryzen 7 5700X, AMD Radeon RX 9070 XT (driver 32.0.32015.16001), 32 GB RAM, Windows 11 Pro (build 26340) |
+| **Host software** | Helios 1.7.0, HEVC encoder `hevc_amf`, virtual display 1920x1080 at 60 Hz |
+| **Client** | Xiaomi Redmi Pad 2 (MediaTek MT8781, Mali-G57 MC2, 8 GB RAM), HyperOS 3.0 (Android 16), decoder `c2.mtk.hevc.decoder` |
+| **Client software** | Selene 1.4.0 with the shared overlay (Selene #57) |
+| **Network** | Host wired at 1 Gbit/s to the router; tablet on Wi-Fi 5 (802.11ac), 5 GHz channel 149, link 433 Mbit/s, RSSI -22 dBm, less than 1 m from the router |
+| **Stream** | 1920x1080, 60 FPS, 60 Mbit/s, stereo audio |
+
 # About this fork
 
 Selene Game Streaming started as a fork of Artemis. Since the original project is no longer being updated, this fork continues independently, with its own releases and roadmap.

@@ -15,18 +15,25 @@ import com.limelight.nvstream.jni.MoonBridge;
 import java.util.List;
 
 /**
- * Builds the text of the performance overlay while a PyroWave stream is running. Numbers are coloured
- * green, yellow or red so a bad link is visible at a glance.
+ * Builds the text of the performance overlay for every codec (PyroWave, H.264, HEVC, AV1). Numbers are
+ * coloured green, yellow or red so a bad link is visible at a glance. Call it off the decode thread: it
+ * makes JNI and Wi-Fi service calls.
  */
-public class PyroWaveOverlayFormatter {
+public class StreamOverlayFormatter {
     public static final int GOOD = Color.rgb(0x66, 0xE0, 0x6B);
     public static final int WARN = Color.rgb(0xFF, 0xD5, 0x4A);
     public static final int BAD = Color.rgb(0xFF, 0x5C, 0x5C);
 
     /** What the decoder measured during the last window. */
     public static class VideoInfo {
+        public String codec = "PyroWave"; // shown before the resolution
+        public String decoderName;        // MediaCodec decoder, null for PyroWave
         public int width, height;
         public float fps;
+        public float receivedFps = -1;    // frames that came from the network, -1 when not tracked
+        // MediaCodec decodes several frames in flight, so its decode time can exceed the frame time
+        // without slowing the stream down; only a blocking decoder (PyroWave) is coloured by it
+        public boolean decodeBlocks = true;
         public float decodeMs;
         public int skipped;
         public int avgFrameKb, maxFrameKb;
@@ -41,7 +48,7 @@ public class PyroWaveOverlayFormatter {
     private final Context context;
     private final boolean lite;
 
-    public PyroWaveOverlayFormatter(Context context, boolean lite) {
+    public StreamOverlayFormatter(Context context, boolean lite) {
         this.context = context;
         this.lite = lite;
     }
@@ -94,7 +101,14 @@ public class PyroWaveOverlayFormatter {
         }
 
         sb.append(versions).append('\n');
-        sb.append(context.getString(R.string.pw_overlay_video, v.width, v.height, v.fps, v.skipped)).append('\n');
+        if (v.receivedFps >= 0) {
+            sb.append(context.getString(R.string.overlay_video_received, v.codec, v.width, v.height, v.fps, v.receivedFps)).append('\n');
+        } else {
+            sb.append(context.getString(R.string.pw_overlay_video, v.codec, v.width, v.height, v.fps, v.skipped)).append('\n');
+        }
+        if (v.decoderName != null) {
+            sb.append(context.getString(R.string.perf_overlay_decoder, v.decoderName)).append('\n');
+        }
         append(sb, context.getString(R.string.pw_overlay_decode, v.decodeMs), colorDecode(v));
         if (v.hostLatencyMs > 0) {
             sb.append("   ");
@@ -183,7 +197,7 @@ public class PyroWaveOverlayFormatter {
     }
 
     private static int colorDecode(VideoInfo v) {
-        if (v.fps <= 0) {
+        if (v.fps <= 0 || !v.decodeBlocks) {
             return GOOD;
         }
         // The decoder is in trouble when one frame takes more than the time between frames
