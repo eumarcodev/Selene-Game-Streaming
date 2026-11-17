@@ -28,6 +28,8 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
 
     private Surface surface;
     private int width, height;
+    private int redrawRate;
+    private boolean framePacing;
     private long handle;
     private double averageDecodeMs = 10;
 
@@ -47,6 +49,13 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     private final AtomicLong hostLatencyTenthsMs = new AtomicLong();
     private final AtomicInteger hostLatencyFrames = new AtomicInteger();
     private long statsStartMs;
+    // Time between complete frames reaching the decoder, to tell network and host jitter from decode jitter
+    private final Object arrivalLock = new Object();
+    private long lastArrivalMs;
+    private long arrivalCount, arrivalSumMs, arrivalSumSqMs, arrivalMaxMs;
+    // Keeps the player alive while the stats timer reads it
+    private final Object handleLock = new Object();
+    private final float[] stageMs = new float[PyroWaveNative.STAGE_COUNT];
     private ScheduledExecutorService statsTimer;
 
     /**
@@ -65,6 +74,11 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         this.targetMbps = bitrateKbps / 1000f;
     }
 
+    /** Present frames one frame period apart (true) or as soon as they are decoded (false). Call before start(). */
+    public void setFramePacing(boolean framePacing) {
+        this.framePacing = framePacing;
+    }
+
     public void setRenderTarget(Surface surface) {
         this.surface = surface;
     }
@@ -73,6 +87,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     public int setup(int format, int width, int height, int redrawRate) {
         this.width = width;
         this.height = height;
+        this.redrawRate = redrawRate;
         return 0;
     }
 
@@ -85,16 +100,21 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         if (handle == 0) {
             throw new IllegalStateException("PyroWave is not supported on this device");
         }
+        if (redrawRate > 0) {
+            PyroWaveNative.nativeSetFrameRate(handle, redrawRate, framePacing);
+        }
         startStatsTimer();
     }
 
     @Override
     public void stop() {
         stopStatsTimer();
-        long h = handle;
-        handle = 0;
-        if (h != 0) {
-            PyroWaveNative.nativeDestroy(h);
+        synchronized (handleLock) {
+            long h = handle;
+            handle = 0;
+            if (h != 0) {
+                PyroWaveNative.nativeDestroy(h);
+            }
         }
     }
 
@@ -113,6 +133,16 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         // sends frames, the ones that already waited too long are skipped so the picture stays current
         // instead of falling further behind. This is safe because every frame is intra-only.
         long start = SystemClock.uptimeMillis();
+        synchronized (arrivalLock) {
+            if (lastArrivalMs != 0 && enqueueTimeMs >= lastArrivalMs) {
+                long gap = enqueueTimeMs - lastArrivalMs;
+                arrivalCount++;
+                arrivalSumMs += gap;
+                arrivalSumSqMs += gap * gap;
+                arrivalMaxMs = Math.max(arrivalMaxMs, gap);
+            }
+            lastArrivalMs = enqueueTimeMs;
+        }
         framesSeen.incrementAndGet();
         frameBytes.addAndGet(decodeUnitLength);
         maxFrameBytes.accumulateAndGet(decodeUnitLength, Math::max);
@@ -178,6 +208,26 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             int hostFrames = hostLatencyFrames.getAndSet(0);
             info.hostLatencyMs = hostFrames == 0 ? 0 : hostLatencyTenthsMs.getAndSet(0) / 10f / hostFrames;
             info.targetMbps = targetMbps;
+            synchronized (arrivalLock) {
+                if (arrivalCount > 1) {
+                    double mean = (double) arrivalSumMs / arrivalCount;
+                    double variance = (double) arrivalSumSqMs / arrivalCount - mean * mean;
+                    info.arrivalJitterMs = (float) Math.sqrt(Math.max(0, variance));
+                    info.arrivalMaxGapMs = (int) arrivalMaxMs;
+                }
+                arrivalCount = arrivalSumMs = arrivalSumSqMs = arrivalMaxMs = 0;
+            }
+            if (info.arrivalJitterMs >= 0) {
+                // Next to the stage times the native player logs once a second
+                android.util.Log.i("SelenePyroWave", String.format(java.util.Locale.US,
+                        "arrival ms: jitter %.1f, longest gap %d, skipped %d, host %.1f",
+                        info.arrivalJitterMs, info.arrivalMaxGapMs, info.skipped, info.hostLatencyMs));
+            }
+            synchronized (handleLock) {
+                if (handle != 0 && PyroWaveNative.nativeStageStats(handle, stageMs) > 0) {
+                    info.stageMs = stageMs.clone();
+                }
+            }
             if (seen == 0) {
                 frameBytes.set(0);
             }

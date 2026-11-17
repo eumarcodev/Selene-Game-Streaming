@@ -21,7 +21,25 @@ public final class PyroWaveNative {
 
     public static native void nativeDestroy(long handle);
 
+    /**
+     * Frame rate of the stream. The display is asked to use a refresh rate that fits it. With paced on, frames
+     * are presented one frame period apart instead of as soon as they are decoded.
+     */
+    public static native void nativeSetFrameRate(long handle, float fps, boolean paced);
+
     public static native long nativeFramesPresented(long handle);
 
     public static native long nativeFramesDropped(long handle);
+
+    /** Number of values {@link #nativeStageStats} writes. */
+    public static final int STAGE_COUNT = 9;
+
+    /**
+     * Average time of each stage since the last call, in milliseconds: parse, fence wait, acquire, record,
+     * submit, present, GPU decode, GPU present, pacing wait. The two GPU values are -1 when the device cannot
+     * measure them.
+     *
+     * @return the number of frames averaged, 0 when there is nothing new
+     */
+    public static native int nativeStageStats(long handle, float[] out);
 }
