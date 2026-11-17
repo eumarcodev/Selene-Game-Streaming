@@ -229,16 +229,17 @@ Java_com_limelight_nvstream_jni_MoonBridge_getStreamStats(JNIEnv *env, jclass cl
     LiGetStreamStats(&stats);
 
     // Same order as MoonBridge.STREAM_STATS_*
-    jlong values[10] = {
+    jlong values[13] = {
         stats.videoPacketsReceived, stats.videoBytesReceived, stats.videoFramesDelivered,
         stats.videoFramesIncomplete, stats.videoFramesLost, stats.videoPacketsLost,
         stats.audioPacketsReceived, stats.audioPacketsLost, stats.audioPacketsRecovered,
-        stats.audioBlocksUnrecoverable
+        stats.audioBlocksUnrecoverable, stats.audioPacketsDiscarded, stats.audioStalls,
+        stats.audioStallMaxMs
     };
 
-    jlongArray result = (*env)->NewLongArray(env, 10);
+    jlongArray result = (*env)->NewLongArray(env, 13);
     if (result != NULL) {
-        (*env)->SetLongArrayRegion(env, result, 0, 10, values);
+        (*env)->SetLongArrayRegion(env, result, 0, 13, values);
     }
     return result;
 }
