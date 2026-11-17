@@ -451,7 +451,18 @@ public class MoonBridge {
     public static final int STREAM_STATS_AUDIO_PACKETS_LOST = 7;
     public static final int STREAM_STATS_AUDIO_PACKETS_RECOVERED = 8;
     public static final int STREAM_STATS_AUDIO_BLOCKS_UNRECOVERABLE = 9;
-    public static final int STREAM_STATS_COUNT = 10;
+    public static final int STREAM_STATS_AUDIO_PACKETS_DISCARDED = 10;
+    public static final int STREAM_STATS_AUDIO_STALLS = 11;
+    // Not a counter: the longest audio arrival stall (ms) since the previous getStreamStats() call
+    public static final int STREAM_STATS_AUDIO_STALL_MAX_MS = 12;
+    public static final int STREAM_STATS_COUNT = 13;
+
+    // Audio frames the renderer skipped to catch up after a late burst (0 when not known)
+    public static int getAudioFramesSkipped() {
+        AudioRenderer renderer = audioRenderer;
+        return renderer instanceof com.limelight.binding.audio.AndroidAudioRenderer ?
+                ((com.limelight.binding.audio.AndroidAudioRenderer) renderer).getSkippedFrames() : 0;
+    }
 
     public static native long[] getStreamStats();
 
