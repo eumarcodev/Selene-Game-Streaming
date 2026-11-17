@@ -122,6 +122,29 @@ public class UiHelper {
         }
     }
 
+    /**
+     * Keeps the content of an activity that does not use {@link #notifyNewRootView(Activity)} out of the status bar,
+     * navigation bar and display cutout. Android 15+ draws every app edge-to-edge once it targets API 35 or higher,
+     * and Android 16 no longer lets an app opt out, so without this the content slides under the system bars.
+     *
+     * @param includeBottom also pad the bottom; pass false when the content already pads itself there
+     *                      (see {@link #applyStatusBarPadding(View)})
+     */
+    public static void applySystemBarInsets(Activity activity, boolean includeBottom) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return;
+        }
+
+        View content = activity.findViewById(android.R.id.content);
+        content.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+            Insets bars = windowInsets.getInsets(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            view.setPadding(bars.left, bars.top, bars.right, includeBottom ? bars.bottom : 0);
+            return windowInsets;
+        });
+        content.requestApplyInsets();
+    }
+
     public static void notifyNewRootView(final Activity activity)
     {
         View rootView = activity.findViewById(android.R.id.content);

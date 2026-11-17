@@ -98,6 +98,8 @@ public class StreamSettings extends AppCompatActivity {
         UiHelper.setLocale(this);
 
         setContentView(R.layout.activity_stream_settings);
+        // The preference list pads its own bottom (applyStatusBarPadding in SettingsFragment.onCreateView)
+        UiHelper.applySystemBarInsets(this, false);
 
 //        UiHelper.notifyNewRootView(this);
     }
