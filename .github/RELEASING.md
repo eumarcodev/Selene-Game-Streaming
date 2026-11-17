@@ -84,7 +84,7 @@ Hotfixes only target the latest stable line. Fixing an older line needs its own 
 ## APK files
 
 Each release has one APK per ABI of the `nonRoot_game` flavor, named `Selene-<version>-nonRoot-<abi>.apk`
-(`arm64-v8a` for almost every phone). The name keeps `nonRoot` because the Obtainium link in the app filters on it.
+(`arm64-v8a` for almost every phone).
 The root flavor is not published.
 
 ## Signing
@@ -109,3 +109,59 @@ Nightly, RC and stable builds fail if a secret is missing. For a local signed bu
 The version comes from the branch and tag names (see above) and is passed to Gradle as `-PversionName`.
 `versionCode` is the number of commits of the built revision, so it grows with every build. Local builds without
 these properties get `0.0.0-dev` and code 1. Gradle needs JDK 17 to 21 (JDK 25 breaks the Android Gradle plugin).
+
+Google Play rejects a `versionCode` it has already received, on any track. Stable is built from the merge commit on
+`master`, which has more commits than any RC of that release, so its code is always higher. Re-running a stable or RC
+workflow after its Play upload succeeded fails at the Play step for this reason; that is expected.
+
+## Google Play
+
+The app is also published on Google Play as `com.eumarcodev.selene`. The Play build is the `nonRoot_play` flavor: the
+same app as `nonRoot_game` (same id, same signing key), without the link to the GitHub releases page in the settings,
+since Play policy forbids pointing users to another update channel (`BuildConfig.PLAY_BUILD`). Play receives an AAB,
+not APKs, and it carries the native debug symbols; `mapping.txt` is uploaded too, so crash reports are readable.
+
+| Channel | Play track |
+|---|---|
+| Nightly | not published |
+| RC | `PLAY_RC_TRACK` (default `alpha`, the closed testing track) |
+| Stable | `production` |
+
+Publishing is off until the repository variable `PLAY_PUBLISHING` is `true`; until then the workflows do exactly what
+they did before. `play.yml` does the upload, using `r0adkll/upload-google-play`.
+
+### One-time setup (Play Console and Google Cloud)
+
+1. **Play Console > Create app**, package `com.eumarcodev.selene`. Fill in the store listing (512 px icon, 1024x500
+   feature graphic, screenshots), the privacy policy URL, Data safety, content rating and target audience.
+2. **App signing**: choose to use your own key and upload the existing `selene` keystore (Play Console shows the
+   `pepk` command to export it). Then the Play version and the GitHub APKs have the same signature and users can
+   switch between them without uninstalling. If Google generates a new key instead, the two can never update each other.
+   The same keystore is then the upload key, so the `SELENE_KEYSTORE_*` secrets need no change.
+3. **First release by hand**: build the AAB locally (`./gradlew bundleNonRoot_playRelease` with the signing variables
+   from [Signing](#signing)) and upload it in the Play Console to the closed testing track. The API cannot create the app.
+4. **Personal accounts created after 2023-11-13**: Google requires a closed test with at least 12 testers opted in for
+   14 days in a row before production access. Use the `alpha` track and the RC builds for it.
+5. **Service account**: in Google Cloud, enable the *Google Play Android Developer API*, create a service account and a
+   JSON key. In **Play Console > Users and permissions**, invite the service account e-mail with access to this app and
+   the release permissions (*Release to production...* and *Release apps to testing tracks*).
+6. In GitHub, **Settings > Secrets and variables > Actions**:
+   - secret `PLAY_SERVICE_ACCOUNT_JSON`: the whole JSON key file;
+   - variable `PLAY_PUBLISHING` = `true`.
+
+Store the JSON key like the keystore: it is enough to publish the app. Revoke it in Google Cloud if it leaks.
+
+### Variables
+
+| Variable | Default | Effect |
+|---|---|---|
+| `PLAY_PUBLISHING` | (unset) | `true` turns the Play upload on in `rc.yml` and `stable.yml` |
+| `PLAY_RC_TRACK` | `alpha` | track for RCs (`alpha`, `beta`, `internal` or a custom closed track) |
+| `PLAY_ROLLOUT` | (unset) | fraction for a staged production rollout, e.g. `0.2`; finish or halt it in the Play Console |
+| `PLAY_RELEASE_STATUS` | `completed` | `draft` while the app has never been published (the API refuses other statuses then) |
+
+### Target SDK
+
+Play requires new apps and updates to target the latest Android API within a year of its release (API 36 since
+2026-08-31). When Google raises it, bump `targetSdk` in `app/build.gradle` and test edge-to-edge layouts, back
+navigation (`enableOnBackInvokedCallback` per activity in the manifest) and tablet orientation.
