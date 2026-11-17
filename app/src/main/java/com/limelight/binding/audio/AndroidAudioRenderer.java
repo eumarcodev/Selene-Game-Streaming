@@ -106,6 +106,11 @@ public class AndroidAudioRenderer implements AudioRenderer {
 
         LimeLog.info("Audio channel config: "+String.format("0x%X", channelConfig));
 
+        this.sampleRate = sampleRate;
+        this.channelCount = audioConfiguration.channelCount;
+        this.framesWritten = 0;
+        this.catchingUp = false;
+
         bytesPerFrame = audioConfiguration.channelCount * samplesPerFrame * 2;
 
         // We're not supposed to request less than the minimum
@@ -198,17 +203,75 @@ public class AndroidAudioRenderer implements AudioRenderer {
         return 0;
     }
 
+    // Catch-up after a late burst (Selene #53). The backlog is what waits in the native queue plus what the
+    // AudioTrack still has to play. Above CATCH_UP_START_MS the track plays a little faster (pitch kept)
+    // until the backlog is back under CATCH_UP_STOP_MS, instead of dropping a block of sound at once.
+    // Frames are only skipped when the native queue alone holds more than SKIP_QUEUE_MS.
+    private static final int CATCH_UP_START_MS = 70;
+    private static final int CATCH_UP_STOP_MS = 35;
+    private static final float CATCH_UP_SPEED = 1.06f;
+    private static final int SKIP_QUEUE_MS = 100;
+
+    private int sampleRate;
+    private int channelCount;
+    private long framesWritten;
+    private boolean catchingUp;
+    private boolean stretchSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M;
+    private volatile int skippedFrames;
+
+    // Frames skipped to catch up since the stream started
+    public int getSkippedFrames() {
+        return skippedFrames;
+    }
+
+    // Milliseconds of audio written to the track and not played yet
+    private int trackBacklogMs() {
+        long played = track.getPlaybackHeadPosition() & 0xFFFFFFFFL;
+        long buffered = framesWritten - played;
+        if (buffered < 0) {
+            buffered = 0;
+        }
+        return (int) (buffered * 1000 / sampleRate);
+    }
+
+    private void setCatchUp(boolean on) {
+        if (on == catchingUp) {
+            return;
+        }
+        catchingUp = on;
+        if (!stretchSupported) {
+            return;
+        }
+        try {
+            track.setPlaybackParams(track.getPlaybackParams().setSpeed(on ? CATCH_UP_SPEED : 1.0f).setPitch(1.0f));
+        } catch (RuntimeException e) {
+            // Time stretching not available for this track: fall back to skipping frames
+            LimeLog.warning("Audio catch-up speed not supported: " + e);
+            stretchSupported = false;
+        }
+    }
+
     @Override
     public void playDecodedAudio(short[] audioData) {
-        // Only queue up to 40 ms of pending audio data in addition to what AudioTrack is buffering for us.
-        if (MoonBridge.getPendingAudioDuration() < 40) {
-            // This will block until the write is completed. That can cause a backlog
-            // of pending audio data, so we do the above check to be able to bound
-            // latency at 40 ms in that situation.
-            track.write(audioData, 0, audioData.length);
+        int queuedMs = MoonBridge.getPendingAudioDuration();
+        if (queuedMs > SKIP_QUEUE_MS || (!stretchSupported && queuedMs >= 40)) {
+            // Far behind (or no time stretching): skip this frame
+            skippedFrames++;
+            return;
         }
-        else {
-            LimeLog.info("Too much pending audio data: " + MoonBridge.getPendingAudioDuration() +" ms");
+
+        int backlogMs = queuedMs + trackBacklogMs();
+        if (backlogMs > CATCH_UP_START_MS) {
+            setCatchUp(true);
+        }
+        else if (backlogMs < CATCH_UP_STOP_MS) {
+            setCatchUp(false);
+        }
+
+        // This blocks while the track is full, which keeps the native queue as the jitter buffer
+        int written = track.write(audioData, 0, audioData.length);
+        if (written > 0) {
+            framesWritten += written / channelCount;
         }
     }
 

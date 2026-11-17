@@ -785,6 +785,8 @@
     <string name="pw_overlay_lite_loss">loss %1$.1f%%</string>
     <string name="pw_overlay_lite_fps">%1$.0f FPS</string>
     <string name="pw_overlay_lite_audio">audio %1$d lost</string>
+    <string name="pw_overlay_audio_late">Late audio: %1$d stalls (longest %2$d ms), %3$d discarded</string>
+    <string name="pw_overlay_lite_audio_stall">audio stall %1$d ms</string>
     <string name="pw_overlay_versions">Selene %1$s / Helios %2$s</string>
     <string name="pw_overlay_unknown_host">unknown</string>
     <string name="pw_event_started">Stream started</string>

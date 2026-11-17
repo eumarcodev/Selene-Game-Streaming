@@ -86,6 +86,10 @@ public class PyroWaveOverlayFormatter {
                 append(sb, context.getString(R.string.pw_overlay_lite_audio, net.audioLost + net.audioUnderruns),
                         net.audioLost > 0 || net.audioUnrecoverable > 0 || net.audioUnderruns > 0 ? BAD : WARN);
             }
+            if (net != null && net.audioStalls > 0) {
+                sb.append("  ");
+                append(sb, context.getString(R.string.pw_overlay_lite_audio_stall, net.audioStallMaxMs), BAD);
+            }
             return sb;
         }
 
@@ -124,6 +128,10 @@ public class PyroWaveOverlayFormatter {
         if (net != null) {
             int audioColor = net.audioLost > 0 || net.audioUnrecoverable > 0 || net.audioUnderruns > 0 ? BAD : (net.audioRecovered > 0 ? WARN : GOOD);
             append(sb, context.getString(R.string.pw_overlay_audio, net.audioLost, net.audioRecovered, net.audioUnrecoverable, net.audioUnderruns), audioColor);
+            sb.append('\n');
+            // Late audio: stalls in arrival (Wi-Fi queues) and what the client dropped to catch up. Not network loss.
+            int lateColor = net.audioStalls > 0 || net.audioDiscarded > 0 ? BAD : GOOD;
+            append(sb, context.getString(R.string.pw_overlay_audio_late, net.audioStalls, net.audioStallMaxMs, net.audioDiscarded), lateColor);
             sb.append('\n');
         }
         if (MoonBridge.pyroWavePacketSizePref > 0 || MoonBridge.pyroWaveMaxFrameKbPref > 0) {
