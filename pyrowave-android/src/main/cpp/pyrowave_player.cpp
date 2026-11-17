@@ -7,9 +7,12 @@
 #include <android/log.h>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <dlfcn.h>
+#include <errno.h>
 #include <jni.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include <sys/system_properties.h>
 #include <chrono>
 #include <mutex>
@@ -49,6 +52,7 @@ struct StageTotals
 	int64_t record = 0;     // command recording, the decoder commands included
 	int64_t submit = 0;     // vkQueueSubmit
 	int64_t present = 0;    // vkQueuePresentKHR
+	int64_t pace = 0;       // wait for the presentation slot (frame pacing)
 	uint32_t frames = 0;
 	int64_t gpu_decode = 0;  // GPU time of the decode
 	int64_t gpu_present = 0; // GPU time of the YCbCr to RGB pass
@@ -106,6 +110,11 @@ struct Player
 	Plane planes[3];
 
 	VkCommandPool pool = VK_NULL_HANDLE;
+	float frame_rate = 0.0f; // stream frame rate the display should match, 0 = not told
+	// Frame pacing: frames are presented one stream period apart instead of as soon as they are ready,
+	// so the jitter of the network and of the decode does not reach the screen.
+	bool paced = false;
+	int64_t pace_slot_ns = 0; // when the previous frame was due
 	FrameSlot slots[kFrameSlots];
 	int next_slot = 0;
 	bool planes_initialized = false;
@@ -204,6 +213,31 @@ void destroy_swapchain(Player &p)
 	}
 }
 
+// Tells the system which frame rate the content has, so the display can switch to a refresh rate that fits
+// (60 fps on a 90 Hz panel left at 90 Hz shows frames for 11 and 22 ms in turn). The vote set from Java on the
+// Surface did not survive the Vulkan swapchain on the Redmi Pad 2, so it is set again on the native window.
+// Both functions are looked up at run time: the first one needs Android 12, the second Android 11.
+void apply_frame_rate(Player &p)
+{
+	if (!p.window || p.frame_rate <= 0.0f)
+		return;
+
+	void *lib = dlopen("libandroid.so", RTLD_NOW);
+	if (!lib)
+		return;
+	using SetWithStrategy = int32_t (*)(ANativeWindow *, float, int8_t, int8_t);
+	using Set = int32_t (*)(ANativeWindow *, float, int8_t);
+	const int8_t fixed_source = 1; // ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_FIXED_SOURCE
+	const int8_t always = 1;       // ANATIVEWINDOW_CHANGE_FRAME_RATE_ALWAYS
+	int32_t result = -1;
+	if (auto with_strategy = reinterpret_cast<SetWithStrategy>(dlsym(lib, "ANativeWindow_setFrameRateWithChangeStrategy")))
+		result = with_strategy(p.window, p.frame_rate, fixed_source, always);
+	else if (auto plain = reinterpret_cast<Set>(dlsym(lib, "ANativeWindow_setFrameRate")))
+		result = plain(p.window, p.frame_rate, fixed_source);
+	dlclose(lib);
+	LOGI("Frame rate %.2f fps set on the window: %s", double(p.frame_rate), result == 0 ? "ok" : "failed");
+}
+
 bool create_swapchain(Player &p)
 {
 	VkSurfaceCapabilitiesKHR caps;
@@ -263,6 +297,7 @@ bool create_swapchain(Player &p)
 		return false;
 	p.sc_format = chosen.format;
 	p.sc_extent = extent;
+	apply_frame_rate(p);
 	LOGI("Swapchain: present mode %s (%u offered), %u images requested, pre-transform 0x%x (current 0x%x), format %d",
 	     present_mode_name(mode), unsigned(modes.size()), sci.minImageCount, unsigned(sci.preTransform),
 	     unsigned(caps.currentTransform), int(chosen.format));
@@ -662,6 +697,46 @@ Player *create_player(JNIEnv *env, jobject surface, int width, int height, bool 
 	return p;
 }
 
+// Waits for the presentation slot of this frame and returns the time waited.
+//
+// Slots are one stream period apart. A frame that is ready before its slot waits for it; a frame that is late
+// is presented at once. The slots move later quickly when frames are late and earlier slowly when frames wait,
+// so the wait settles at about the size of the jitter and not more.
+int64_t wait_for_slot(Player &p)
+{
+	if (!p.paced || p.frame_rate <= 0.0f)
+		return 0;
+
+	const int64_t period = int64_t(1e9 / double(p.frame_rate));
+	const int64_t now = now_ns();
+	if (p.pace_slot_ns == 0 || now - p.pace_slot_ns > 4 * period)
+	{
+		// First frame, or the stream paused (the host sends nothing while the screen is still)
+		p.pace_slot_ns = now;
+		return 0;
+	}
+
+	int64_t slot = p.pace_slot_ns + period;
+	while (slot + period / 2 < now)
+		slot += period; // the host skipped frames, or this one is more than half a period late
+
+	if (now >= slot)
+	{
+		p.pace_slot_ns = slot + (now - slot) / 2;
+		return 0;
+	}
+
+	timespec ts;
+	ts.tv_sec = time_t(slot / 1000000000);
+	ts.tv_nsec = long(slot % 1000000000);
+	while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) == EINTR)
+	{
+	}
+	const int64_t waited = slot - now;
+	p.pace_slot_ns = slot - waited / 50;
+	return waited;
+}
+
 // Returns 0 when presented, 1 when the frame was dropped, negative on errors.
 int decode_and_present(Player &p, int64_t parse_ns = 0)
 {
@@ -820,6 +895,8 @@ int decode_and_present(Player &p, int64_t parse_ns = 0)
 	f.fence_pending = true;
 	f.query_pending = f.query_pool != VK_NULL_HANDLE;
 	const int64_t t_submit = now_ns();
+	const int64_t pace_ns = wait_for_slot(p);
+	const int64_t t_pace = now_ns();
 
 	VkPresentInfoKHR pi = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 	pi.waitSemaphoreCount = 1;
@@ -841,7 +918,8 @@ int decode_and_present(Player &p, int64_t parse_ns = 0)
 		st.acquire += t_acquire - t_fence;
 		st.record += t_record - t_acquire;
 		st.submit += t_submit - t_record;
-		st.present += t_present - t_submit;
+		st.present += t_present - t_pace;
+		st.pace += pace_ns;
 		st.frames++;
 		if (gpu_decode_ns >= 0)
 		{
@@ -987,13 +1065,13 @@ Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSelfTestFrame(JNIEnv *,
 }
 
 // Fills out with the average time of each stage since the last call, in milliseconds:
-// parse, fence wait, acquire, record, submit, present, GPU decode, GPU present. The GPU values are -1
-// when the device has no timestamp queries. Returns the number of frames averaged.
+// parse, fence wait, acquire, record, submit, present, GPU decode, GPU present, pacing wait. The GPU values
+// are -1 when the device has no timestamp queries. Returns the number of frames averaged.
 extern "C" JNIEXPORT jint JNICALL
 Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeStageStats(JNIEnv *env, jclass, jlong handle, jfloatArray out)
 {
 	auto *p = reinterpret_cast<Player *>(handle);
-	if (!p || !out || env->GetArrayLength(out) < 8)
+	if (!p || !out || env->GetArrayLength(out) < 9)
 		return 0;
 
 	StageTotals st;
@@ -1006,18 +1084,34 @@ Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeStageStats(JNIEnv *env,
 		return 0;
 
 	const double n = double(st.frames) * 1e6;
-	jfloat ms[8] = {
+	jfloat ms[9] = {
 		jfloat(double(st.parse) / n), jfloat(double(st.fence_wait) / n), jfloat(double(st.acquire) / n),
 		jfloat(double(st.record) / n), jfloat(double(st.submit) / n), jfloat(double(st.present) / n),
-		-1.0f, -1.0f,
+		-1.0f, -1.0f, jfloat(double(st.pace) / n),
 	};
 	if (st.gpu_frames > 0)
 	{
 		ms[6] = jfloat(double(st.gpu_decode) / (double(st.gpu_frames) * 1e6));
 		ms[7] = jfloat(double(st.gpu_present) / (double(st.gpu_frames) * 1e6));
 	}
-	env->SetFloatArrayRegion(out, 0, 8, ms);
-	LOGI("stages ms (%u frames): parse %.2f, fence wait %.2f, acquire %.2f, record %.2f, submit %.2f, present %.2f, GPU decode %.2f, GPU present %.2f",
-	     st.frames, ms[0], ms[1], ms[2], ms[3], ms[4], ms[5], ms[6], ms[7]);
+	env->SetFloatArrayRegion(out, 0, 9, ms);
+	LOGI("stages ms (%u frames): parse %.2f, fence wait %.2f, acquire %.2f, record %.2f, submit %.2f, present %.2f, GPU decode %.2f, GPU present %.2f, pace wait %.2f",
+	     st.frames, ms[0], ms[1], ms[2], ms[3], ms[4], ms[5], ms[6], ms[7], ms[8]);
 	return jint(st.frames);
+}
+
+// Tells the player the frame rate of the stream, so the display refresh rate can follow it, and whether
+// frames are presented one period apart (paced) or as soon as they are ready.
+extern "C" JNIEXPORT void JNICALL
+Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSetFrameRate(JNIEnv *, jclass, jlong handle, jfloat fps,
+                                                                       jboolean paced)
+{
+	auto *p = reinterpret_cast<Player *>(handle);
+	if (!p)
+		return;
+	p->frame_rate = fps;
+	p->paced = paced == JNI_TRUE;
+	p->pace_slot_ns = 0;
+	apply_frame_rate(*p);
+	LOGI("Frame pacing %s", p->paced ? "on" : "off");
 }

@@ -32,6 +32,8 @@ public class PyroWaveOverlayFormatter {
         public int avgFrameKb, maxFrameKb;
         public float hostLatencyMs; // 0 when the host did not report it
         public float targetMbps;    // 0 when unknown
+        public float arrivalJitterMs = -1; // standard deviation of the time between frames, -1 when unknown
+        public int arrivalMaxGapMs;        // longest time between two frames in the window
         // Average time per stage in ms, see PyroWaveNative.nativeStageStats. Null when nothing was decoded
         public float[] stageMs;
     }
@@ -101,6 +103,12 @@ public class PyroWaveOverlayFormatter {
                 sb.append(context.getString(R.string.pw_overlay_gpu, s[6], s[7])).append('\n');
             }
             sb.append(context.getString(R.string.pw_overlay_stages, s[0], s[1], s[2], s[3], s[4], s[5])).append('\n');
+            if (s.length >= 9 && s[8] > 0.05f) {
+                sb.append(context.getString(R.string.pw_overlay_pace, s[8])).append('\n');
+            }
+        }
+        if (v.arrivalJitterMs >= 0) {
+            sb.append(context.getString(R.string.pw_overlay_arrival, v.arrivalJitterMs, v.arrivalMaxGapMs)).append('\n');
         }
         append(sb, context.getString(R.string.pw_overlay_speed, mbps), bandwidthColor);
         sb.append("   ").append(context.getString(R.string.pw_overlay_frame_size, v.avgFrameKb, v.maxFrameKb)).append('\n');
