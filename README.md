@@ -22,7 +22,7 @@ The names continue the sun and moon family of the streaming projects: Selene is 
   <img src="branding/helios-selene.png" width="600" alt="Helios and Selene icons joined by the stream">
 </p>
 
-The icons tell the same story: Helios, the sun, emits the stream, and Selene, the moon, receives it and reflects it (the orange waves cool into cyan as they reach the sapphire). The icon sources are generated in [Helios-Server/branding](https://github.com/eumarcodev/Helios-Server/tree/develop/branding); copies of the SVGs are in [`branding/`](branding).
+The icons tell the same story: Helios, the sun, emits the stream, and Selene, the moon, receives it and reflects it (the orange waves cool into cyan as they reach the sapphire). The icon sources and the generator live in [`branding/`](branding).
 
 | Project | Role | Authors |
 |---------|------|---------|
