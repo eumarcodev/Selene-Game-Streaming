@@ -401,6 +401,18 @@ public class StreamSettings extends AppCompatActivity {
                         (PreferenceCategory) findPreference("category_help");
                 screen.removePreference(category);
             }*/
+            // Google Play builds are updated by the store only (Play policy forbids pointing users to
+            // other update channels), so hide the GitHub releases link there.
+            if (BuildConfig.PLAY_BUILD) {
+                PreferenceCategory miscCategory = findPreference("category_settings_misc");
+                if (miscCategory != null) {
+                    Preference releasesPref = findPreference("option_software_release");
+                    if (releasesPref != null) {
+                        miscCategory.removePreference(releasesPref);
+                    }
+                }
+            }
+
             PreferenceCategory category_gamepad_settings =
                     (PreferenceCategory) findPreference("category_gamepad_settings");
             // Remove the vibration options if the device can't vibrate

@@ -40,6 +40,7 @@ android {
             applicationId "com.eumarcodev.selene.root"
             dimension "root"
             buildConfigField "boolean", "ROOT_BUILD", "true"
+            buildConfigField "boolean", "PLAY_BUILD", "false"
         }
 
         nonRoot_game {
@@ -52,6 +53,30 @@ android {
             applicationId "com.eumarcodev.selene"
             dimension "root"
             buildConfigField "boolean", "ROOT_BUILD", "false"
+            buildConfigField "boolean", "PLAY_BUILD", "false"
+        }
+
+        // Google Play build: same app as nonRoot_game (same id and signing key, so users can move between
+        // the GitHub APK and the Play version without reinstalling), but without the link to the GitHub
+        // releases page, since Play policy does not allow pointing users to another update channel.
+        // Published as an AAB, see .github/RELEASING.md.
+        nonRoot_play {
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "PRODUCT_FLAVOR=nonRoot"
+                }
+            }
+
+            applicationId "com.eumarcodev.selene"
+            dimension "root"
+            buildConfigField "boolean", "ROOT_BUILD", "false"
+            buildConfigField "boolean", "PLAY_BUILD", "true"
+        }
+    }
+
+    sourceSets {
+        nonRoot_play {
+            manifest.srcFile 'src/nonRoot_game/AndroidManifest.xml'
         }
     }
 
