@@ -32,6 +32,8 @@ public class PyroWaveOverlayFormatter {
         public int avgFrameKb, maxFrameKb;
         public float hostLatencyMs; // 0 when the host did not report it
         public float targetMbps;    // 0 when unknown
+        // Average time per stage in ms, see PyroWaveNative.nativeStageStats. Null when nothing was decoded
+        public float[] stageMs;
     }
 
     private final Context context;
@@ -93,6 +95,13 @@ public class PyroWaveOverlayFormatter {
             sb.append(context.getString(R.string.pw_overlay_host, v.hostLatencyMs));
         }
         sb.append('\n');
+        if (v.stageMs != null && v.stageMs.length >= 8) {
+            float[] s = v.stageMs;
+            if (s[6] >= 0) {
+                sb.append(context.getString(R.string.pw_overlay_gpu, s[6], s[7])).append('\n');
+            }
+            sb.append(context.getString(R.string.pw_overlay_stages, s[0], s[1], s[2], s[3], s[4], s[5])).append('\n');
+        }
         append(sb, context.getString(R.string.pw_overlay_speed, mbps), bandwidthColor);
         sb.append("   ").append(context.getString(R.string.pw_overlay_frame_size, v.avgFrameKb, v.maxFrameKb)).append('\n');
         if (net != null) {

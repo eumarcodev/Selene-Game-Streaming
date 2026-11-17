@@ -24,4 +24,15 @@ public final class PyroWaveNative {
     public static native long nativeFramesPresented(long handle);
 
     public static native long nativeFramesDropped(long handle);
+
+    /** Number of values {@link #nativeStageStats} writes. */
+    public static final int STAGE_COUNT = 8;
+
+    /**
+     * Average time of each stage since the last call, in milliseconds: parse, fence wait, acquire, record,
+     * submit, present, GPU decode, GPU present. The two GPU values are -1 when the device cannot measure them.
+     *
+     * @return the number of frames averaged, 0 when there is nothing new
+     */
+    public static native int nativeStageStats(long handle, float[] out);
 }

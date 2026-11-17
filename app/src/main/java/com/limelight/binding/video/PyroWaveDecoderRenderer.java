@@ -47,6 +47,9 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     private final AtomicLong hostLatencyTenthsMs = new AtomicLong();
     private final AtomicInteger hostLatencyFrames = new AtomicInteger();
     private long statsStartMs;
+    // Keeps the player alive while the stats timer reads it
+    private final Object handleLock = new Object();
+    private final float[] stageMs = new float[PyroWaveNative.STAGE_COUNT];
     private ScheduledExecutorService statsTimer;
 
     /**
@@ -91,10 +94,12 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     @Override
     public void stop() {
         stopStatsTimer();
-        long h = handle;
-        handle = 0;
-        if (h != 0) {
-            PyroWaveNative.nativeDestroy(h);
+        synchronized (handleLock) {
+            long h = handle;
+            handle = 0;
+            if (h != 0) {
+                PyroWaveNative.nativeDestroy(h);
+            }
         }
     }
 
@@ -178,6 +183,11 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             int hostFrames = hostLatencyFrames.getAndSet(0);
             info.hostLatencyMs = hostFrames == 0 ? 0 : hostLatencyTenthsMs.getAndSet(0) / 10f / hostFrames;
             info.targetMbps = targetMbps;
+            synchronized (handleLock) {
+                if (handle != 0 && PyroWaveNative.nativeStageStats(handle, stageMs) > 0) {
+                    info.stageMs = stageMs.clone();
+                }
+            }
             if (seen == 0) {
                 frameBytes.set(0);
             }
