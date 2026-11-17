@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="branding/selene-icon.png" width="160" alt="Selene icon">
+</p>
+
 # Selene Game Streaming
 
 An open source Android client for [Helios](https://github.com/eumarcodev/Helios-Server), [Apollo](https://github.com/ClassicOldSong/Apollo) and [Sunshine](https://github.com/LizardByte/Sunshine) hosts.
@@ -13,6 +17,12 @@ A more seamless experience with virtual display will be Selene paired with [Heli
 ## Lineage and credits
 
 The names continue the sun and moon family of the streaming projects: Selene is the moon, the companion of the sun host Helios.
+
+<p align="center">
+  <img src="branding/helios-selene.png" width="600" alt="Helios and Selene icons joined by the stream">
+</p>
+
+The icons tell the same story: Helios, the sun, emits the stream, and Selene, the moon, receives it and reflects it (the orange waves cool into cyan as they reach the sapphire). The icon sources are generated in [Helios-Server/branding](https://github.com/eumarcodev/Helios-Server/tree/develop/branding); copies of the SVGs are in [`branding/`](branding).
 
 | Project | Role | Authors |
 |---------|------|---------|
