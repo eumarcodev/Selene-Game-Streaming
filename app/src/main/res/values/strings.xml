@@ -772,6 +772,7 @@
     <string name="pw_overlay_gpu">GPU: decode %1$.1f ms, present pass %2$.1f ms</string>
     <string name="pw_overlay_stages">CPU: parse %1$.1f, wait GPU %2$.1f, acquire %3$.1f, record %4$.1f, submit %5$.1f, present %6$.1f ms</string>
     <string name="pw_overlay_pace">Frame pacing wait: %1$.1f ms</string>
+    <string name="pw_overlay_arrival">Frame arrival: jitter %1$.1f ms, longest gap %2$d ms</string>
     <string name="pw_overlay_speed">Speed: %1$.1f Mbit/s</string>
     <string name="pw_overlay_frame_size">Frame: %1$d KB avg, %2$d KB max</string>
     <string name="pw_overlay_loss">Loss: incomplete frames %1$.1f%%, packets %2$.1f%%</string>

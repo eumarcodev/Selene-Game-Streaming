@@ -747,8 +747,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         MoonBridge.setPyroWavePrefs(prefConfig.pyroWavePacketSize, prefConfig.pyroWaveMaxFrameKb);
         pyroWaveRenderer = new PyroWaveDecoderRenderer(this, this, prefConfig.enablePerfOverlayLite, prefConfig.bitrate,
                 prefConfig.pyroWaveLatencyPolicy, prefConfig.pyroWaveSkipAgeMs);
-        // Any frame pacing choice other than "lowest latency" spaces the PyroWave frames evenly
-        pyroWaveRenderer.setFramePacing(prefConfig.framePacing != PreferenceConfiguration.FRAME_PACING_MIN_LATENCY);
+        // Any frame pacing choice other than "lowest latency" spaces the PyroWave frames evenly. The stored
+        // setting is read here because prefConfig.framePacing was overwritten with BALANCED above.
+        String framePacingSetting = android.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                .getString("frame_pacing", "latency");
+        pyroWaveRenderer.setFramePacing(!"latency".equals(framePacingSetting));
         videoRenderer = new FormatSwitchingRenderer(decoderRenderer, pyroWaveRenderer);
 
         int gamepadMask = ControllerHandler.getAttachedControllerMask(this);
