@@ -229,6 +229,16 @@
     <string name="title_pyrowave_packet_size">Tamanho do pacote</string>
     <string name="summary_pyrowave_packet_size">Maior pacote PyroWave que o host deve enviar. Pacotes menores podem ajudar em redes que descartam datagramas grandes. O host pode usar um valor menor que o pedido. Exige um host Helios.</string>
     <string name="title_pyrowave_max_frame">Tamanho máximo do quadro</string>
+    <string name="title_pyrowave_bitrate">Bitrate do PyroWave</string>
+    <string name="summary_pyrowave_bitrate">Bitrate de vídeo usado quando o stream é PyroWave. O PyroWave codifica cada quadro sozinho, então precisa de cerca de 2,5 vezes o bitrate do HEVC para a mesma imagem. Diminua se a imagem travar ou o overlay mostrar perda na sua rede.</string>
+    <string name="pyrowave_bitrate_auto">Automático (2,5 vezes o bitrate de vídeo, até 150 Mbit/s)</string>
+    <string name="pyrowave_bitrate_same">Igual ao bitrate de vídeo</string>
+    <string name="title_pyrowave_static_boost">Tela parada mais nítida</string>
+    <string name="summary_pyrowave_static_boost">Enquanto a tela não muda, o host envia só alguns quadros por segundo; eles recebem 4 vezes o tamanho normal, então a imagem parada fica nítida sem passar do bitrate. Exige um host Helios.</string>
+    <string name="pyrowave_static_boost_host">Configuração do host</string>
+    <string name="pyrowave_static_boost_on">Ligado</string>
+    <string name="pyrowave_static_boost_off">Desligado</string>
+    <string name="pw_overlay_bitrate">Bitrate do PyroWave: %1$d Mbit/s</string>
     <string name="summary_pyrowave_max_frame">Limite do tamanho de um quadro, que reduz o pico de banda ao custo de qualidade em cenas movimentadas. O host pode usar um valor maior que o pedido. Exige um host Helios.</string>
     <string name="pyrowave_pref_auto">Deixar o host decidir (padrão)</string>
     <string name="pyrowave_pref_nolimit">Sem limite (padrão)</string>

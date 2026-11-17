@@ -745,7 +745,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             supportedVideoFormats |= MoonBridge.VIDEO_FORMAT_PYROWAVE;
         }
         MoonBridge.setPyroWavePrefs(prefConfig.pyroWavePacketSize, prefConfig.pyroWaveMaxFrameKb);
-        pyroWaveRenderer = new PyroWaveDecoderRenderer(this, this, prefConfig.enablePerfOverlayLite, prefConfig.bitrate,
+        // PyroWave codes every frame on its own, so it needs more bitrate than HEVC for the same picture (Selene #61).
+        // Automatic: 2.5 times the video bitrate, up to 150 Mbit/s; never raised on a metered network.
+        int videoBitrateKbps = isMetered ? prefConfig.meteredBitrate : prefConfig.bitrate;
+        int pyroWaveBitrateKbps;
+        if (prefConfig.pyroWaveBitrate > 0) {
+            pyroWaveBitrateKbps = isMetered ? Math.min(prefConfig.pyroWaveBitrate, videoBitrateKbps) : prefConfig.pyroWaveBitrate;
+        } else if (prefConfig.pyroWaveBitrate == 0 && !isMetered) {
+            pyroWaveBitrateKbps = Math.max(videoBitrateKbps, Math.min(PreferenceConfiguration.PYROWAVE_AUTO_MAX_KBPS,
+                    Math.round(videoBitrateKbps * PreferenceConfiguration.PYROWAVE_AUTO_FACTOR)));
+        } else {
+            pyroWaveBitrateKbps = videoBitrateKbps;
+        }
+        MoonBridge.setPyroWaveQualityPrefs(pyroWaveBitrateKbps == videoBitrateKbps ? 0 : pyroWaveBitrateKbps,
+                prefConfig.pyroWaveStaticBoost);
+        pyroWaveRenderer = new PyroWaveDecoderRenderer(this, this, prefConfig.enablePerfOverlayLite, pyroWaveBitrateKbps,
                 prefConfig.pyroWaveLatencyPolicy, prefConfig.pyroWaveSkipAgeMs);
         // Any frame pacing choice other than "lowest latency" spaces the PyroWave frames evenly. The stored
         // setting is read here because prefConfig.framePacing was overwritten with BALANCED above.

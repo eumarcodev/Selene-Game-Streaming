@@ -252,6 +252,22 @@
             android:summary="@string/summary_pyrowave_max_frame"
             android:title="@string/title_pyrowave_max_frame"
             app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue="0"
+            android:entries="@array/pyrowave_bitrate_names"
+            android:entryValues="@array/pyrowave_bitrate_values"
+            android:key="list_pyrowave_bitrate"
+            android:summary="@string/summary_pyrowave_bitrate"
+            android:title="@string/title_pyrowave_bitrate"
+            app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue="0"
+            android:entries="@array/pyrowave_static_boost_names"
+            android:entryValues="@array/pyrowave_static_boost_values"
+            android:key="list_pyrowave_static_boost"
+            android:summary="@string/summary_pyrowave_static_boost"
+            android:title="@string/title_pyrowave_static_boost"
+            app:iconSpaceReserved="false" />
         <com.limelight.preferences.SeekBarPreference
             android:dialogMessage="@string/summary_pyrowave_skip_age"
             android:key="seekbar_pyrowave_skip_age_ms"
