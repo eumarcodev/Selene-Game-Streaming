@@ -28,6 +28,8 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
 
     private Surface surface;
     private int width, height;
+    private int redrawRate;
+    private boolean framePacing;
     private long handle;
     private double averageDecodeMs = 10;
 
@@ -68,6 +70,11 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         this.targetMbps = bitrateKbps / 1000f;
     }
 
+    /** Present frames one frame period apart (true) or as soon as they are decoded (false). Call before start(). */
+    public void setFramePacing(boolean framePacing) {
+        this.framePacing = framePacing;
+    }
+
     public void setRenderTarget(Surface surface) {
         this.surface = surface;
     }
@@ -76,6 +83,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     public int setup(int format, int width, int height, int redrawRate) {
         this.width = width;
         this.height = height;
+        this.redrawRate = redrawRate;
         return 0;
     }
 
@@ -87,6 +95,9 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         handle = PyroWaveNative.nativeCreate(surface, width, height, false);
         if (handle == 0) {
             throw new IllegalStateException("PyroWave is not supported on this device");
+        }
+        if (redrawRate > 0) {
+            PyroWaveNative.nativeSetFrameRate(handle, redrawRate, framePacing);
         }
         startStatsTimer();
     }

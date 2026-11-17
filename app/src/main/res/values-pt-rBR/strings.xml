@@ -280,6 +280,7 @@
     <string name="pw_overlay_host">Codificação no host: %1$.1f ms</string>
     <string name="pw_overlay_gpu">GPU: decodificação %1$.1f ms, apresentação %2$.1f ms</string>
     <string name="pw_overlay_stages">CPU: leitura %1$.1f, espera GPU %2$.1f, aquisição %3$.1f, gravação %4$.1f, envio %5$.1f, apresentação %6$.1f ms</string>
+    <string name="pw_overlay_pace">Espera do frame pacing: %1$.1f ms</string>
     <string name="pw_overlay_speed">Velocidade: %1$.1f Mbit/s</string>
     <string name="pw_overlay_frame_size">Quadro: %1$d KB médio, %2$d KB máx.</string>
     <string name="pw_overlay_loss">Perda: quadros incompletos %1$.1f%%, pacotes %2$.1f%%</string>

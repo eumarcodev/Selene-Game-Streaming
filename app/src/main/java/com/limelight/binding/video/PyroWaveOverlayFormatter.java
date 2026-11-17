@@ -101,6 +101,9 @@ public class PyroWaveOverlayFormatter {
                 sb.append(context.getString(R.string.pw_overlay_gpu, s[6], s[7])).append('\n');
             }
             sb.append(context.getString(R.string.pw_overlay_stages, s[0], s[1], s[2], s[3], s[4], s[5])).append('\n');
+            if (s.length >= 9 && s[8] > 0.05f) {
+                sb.append(context.getString(R.string.pw_overlay_pace, s[8])).append('\n');
+            }
         }
         append(sb, context.getString(R.string.pw_overlay_speed, mbps), bandwidthColor);
         sb.append("   ").append(context.getString(R.string.pw_overlay_frame_size, v.avgFrameKb, v.maxFrameKb)).append('\n');
