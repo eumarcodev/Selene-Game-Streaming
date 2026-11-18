@@ -1,15 +1,13 @@
 name: Pull request build
 
-# Validates pull requests without publishing anything. The Android build only runs when the PR touches
-# code that affects the binaries, or when it has the `build` label. Draft PRs are skipped unless labelled `build`.
+# Pull requests are built only on request: add the `build` label. Without it nothing runs, because local builds and
+# tests come first and every merge to develop already builds a release candidate (rc.yml).
 on:
   pull_request:
     branches:
       - develop
       - master
-      - "release/**"
-      - "hotfix/**"
-    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
@@ -17,49 +15,14 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
-  changes:
-    name: Decide if a build is needed
-    # Adding a label only matters when it is the `build` label
-    if: github.event.action != 'labeled' || github.event.label.name == 'build'
-    runs-on: ubuntu-latest
-    outputs:
-      build: ${{ steps.decide.outputs.build }}
-    steps:
-      - name: Decide
-        id: decide
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-          DRAFT: ${{ github.event.pull_request.draft }}
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-        run: |
-          set -euo pipefail
-          build=false
-          if [[ ",${LABELS}," == *",build,"* ]]; then
-            build=true
-            reason="label 'build'"
-          elif [[ "${DRAFT}" == "true" ]]; then
-            reason="draft PR"
-          else
-            files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename')
-            if grep -Eq '^(app/|gradle/|build\.gradle$|settings\.gradle$|gradle\.properties$|gradlew(\.bat)?$|\.gitmodules$|\.github/workflows/)' <<< "${files}"; then
-              build=true
-              reason="the PR changes code that affects the binaries"
-            else
-              reason="the PR only changes files that do not affect the binaries"
-            fi
-          fi
-          echo "build=${build}" >> "$GITHUB_OUTPUT"
-          echo "Build: ${build} (${reason})" | tee -a "$GITHUB_STEP_SUMMARY"
-
   build:
     name: Build
-    needs: changes
-    if: needs.changes.outputs.build == 'true'
+    # Adding another label must not rebuild
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'build') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'build')
     uses: ./.github/workflows/build.yml
     with:
       version: 0.0.0-pr.${{ github.event.pull_request.number }}

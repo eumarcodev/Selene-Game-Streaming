@@ -1,7 +1,7 @@
 name: Publish to Google Play
 
 # Reusable workflow: uploads the Play bundle (AAB of the nonRoot_play flavor, built by build.yml with
-# play-bundle: true) to a Google Play track. Called by rc.yml and stable.yml only when the repository variable
+# play-bundle: true) to a Google Play track. Called by rc.yml and promote.yml only when the repository variable
 # PLAY_PUBLISHING is "true". Setup and variables: .github/RELEASING.md, section "Google Play".
 on:
   workflow_call:

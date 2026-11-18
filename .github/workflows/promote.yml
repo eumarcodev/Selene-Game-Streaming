@@ -1,0 +1,169 @@
+name: Promote to stable
+
+# Manual (Actions > Promote to stable > Run workflow): turns a tested release candidate into the stable release.
+#   1. builds the RC's commit again with the stable version (the version is baked into the binaries)
+#   2. fast-forwards master to that commit and publishes vX.Y.Z as the latest release
+#   3. bumps VERSION on develop to the next minor version, so the next merge starts the next RC series
+# When the repository variable PLAY_PUBLISHING is "true", the release is also uploaded to the Google Play production
+# track (see .github/RELEASING.md, section "Google Play").
+on:
+  workflow_dispatch:
+    inputs:
+      rc:
+        description: "RC to promote (e.g. v1.10.0-rc.2). Empty: the latest RC of the version in develop's VERSION file."
+        type: string
+        required: false
+        default: ""
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.plan.outputs.sha }}
+      version: ${{ steps.plan.outputs.version }}
+      previous: ${{ steps.plan.outputs.previous }}
+    steps:
+      - name: Checkout develop (full history and tags)
+        uses: actions/checkout@v7
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Plan
+        id: plan
+        env:
+          RC: ${{ inputs.rc }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          rc="${RC// /}"
+          if [[ -z "${rc}" ]]; then
+            base=$(tr -d ' \r\n' < VERSION)
+            rc=$( (git tag -l "v${base}-rc.*" || true) | sort -V | tail -1)
+            [[ -n "${rc}" ]] || fail "There is no release candidate for ${base} yet (VERSION on develop)"
+          fi
+          [[ "${rc}" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-rc\.[0-9]+$ ]] || fail "RC must look like vX.Y.Z-rc.N, got '${rc}'"
+          version="${BASH_REMATCH[1]}"
+          git rev-parse -q --verify "refs/tags/${rc}" > /dev/null || fail "Tag ${rc} does not exist"
+          git rev-parse -q --verify "refs/tags/v${version}" > /dev/null && fail "v${version} is already released"
+
+          sha=$(git rev-list -n1 "${rc}")
+          git merge-base --is-ancestor origin/master "${sha}" ||
+            fail "master has commits that are not in ${rc}, so it cannot be fast-forwarded. Merge master into develop first."
+
+          previous=$( (git tag -l 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true) | sort -V | tail -1)
+          {
+            echo "sha=${sha}"
+            echo "version=${version}"
+            echo "previous=${previous}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Promote ${rc} (${sha}) to v${version}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build
+    needs: prepare
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      ref: ${{ needs.prepare.outputs.sha }}
+      sign: true
+      play-bundle: ${{ vars.PLAY_PUBLISHING == 'true' }}
+
+  publish:
+    name: Publish release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v${{ needs.prepare.outputs.version }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+      PREVIOUS: ${{ needs.prepare.outputs.previous }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+
+      # A plain push only fast-forwards; it is rejected if master has diverged
+      - name: Move master to the release
+        run: git push origin "${SHA}:refs/heads/master"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: selene-android
+          path: dist
+
+      # Release notes start at the previous stable release, not at the last RC
+      - name: Create release
+        run: |
+          set -euo pipefail
+          args=()
+          [[ -n "${PREVIOUS}" ]] && args+=(--notes-start-tag "${PREVIOUS}")
+          gh release create "${TAG}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${SHA}" \
+            --title "Selene ${TAG}" \
+            --latest \
+            --generate-notes \
+            "${args[@]}"
+
+  play:
+    name: Google Play
+    needs: [prepare, build, publish]
+    if: vars.PLAY_PUBLISHING == 'true'
+    uses: ./.github/workflows/play.yml
+    secrets:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      track: production
+      # PLAY_ROLLOUT (e.g. 0.2) starts a staged rollout; finish it in the Play Console. Empty = everyone.
+      status: ${{ vars.PLAY_RELEASE_STATUS || (vars.PLAY_ROLLOUT && 'inProgress') || 'completed' }}
+      user-fraction: ${{ vars.PLAY_ROLLOUT }}
+
+  bump:
+    name: Bump VERSION on develop
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    # The release is already out; a failure here only means VERSION has to be bumped by hand
+    continue-on-error: true
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v7
+        with:
+          ref: develop
+
+      - name: Bump
+        run: |
+          set -euo pipefail
+          current=$(tr -d ' \r\n' < VERSION)
+          if [[ "${current}" != "${VERSION}" ]]; then
+            echo "VERSION on develop is ${current}, not ${VERSION}; leaving it alone" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          IFS=. read -r major minor _ <<< "${VERSION}"
+          next="${major}.$((minor + 1)).0"
+          echo "${next}" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: start ${next} after releasing v${VERSION}"
+          git push origin HEAD:develop
+          echo "VERSION on develop: ${next}" | tee -a "$GITHUB_STEP_SUMMARY"
