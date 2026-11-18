@@ -159,6 +159,27 @@ Pull requests and ideas are welcome.
 ## Downloads
 * [Download APK directly](https://github.com/eumarcodev/Selene-Game-Streaming/releases)
 
+### Which APK to download
+
+Each release has one APK per processor type (ABI), for example `Selene-1.9.0-nonRoot-arm64-v8a.apk`. They are the same app; each one only contains the native code (decoder glue, streaming core, PyroWave) for one kind of processor, which keeps the download small. Pick the one that matches your device:
+
+| APK | Use it on | Notes |
+|---|---|---|
+| `arm64-v8a` | Almost every phone, tablet and recent Android TV device (64-bit ARM, Android running in 64-bit) | **The right choice in most cases.** Fastest build: it uses ARMv8 NEON code, for example for FEC packet recovery. |
+| `armeabi-v7a` | Older 32-bit ARM devices, and devices with a 64-bit chip that run a 32-bit Android (common on cheap TV boxes, TV sticks and some Android Go phones) | Only if `arm64-v8a` does not install. On a 64-bit Android it also installs, but runs slower, so prefer `arm64-v8a` there. Some newer chips have no 32-bit support at all and cannot run it. |
+| `x86_64` | Intel or AMD 64-bit Android devices: Chromebooks with Intel/AMD processors, Android emulators on a PC | |
+| `x86` | Old 32-bit Intel Atom Android tablets | Rare. |
+
+How to check your device:
+
+* With a PC and USB debugging: `adb shell getprop ro.product.cpu.abilist`. The first value is the best APK, e.g. `arm64-v8a,armeabi-v7a,armeabi` means `arm64-v8a`.
+* Without a PC: an app such as CPU-Z or Device Info HW shows the supported instruction sets / ABIs. A 64-bit Android lists `arm64-v8a`.
+* If you pick the wrong one, Android refuses to install it ("App not installed"); just try the next one. You never need more than one.
+
+The `nonRoot` in the file name is the normal build, which works on any device; the rooted variant is not published.
+
+When you update, download the same APK type you installed before. It installs over the old version and keeps your settings and paired hosts.
+
 ## Building
 * Install Android Studio and the Android NDK
 * Run ‘git submodule update --init’ from within the repository folder, then ‘git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c’ and ‘bash third_party/pyrowave/checkout_granite.sh’ (PyroWave's Granite has many nested submodules that are not needed, so do not use ‘--recursive’ on everything)
