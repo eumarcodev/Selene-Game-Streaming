@@ -52,6 +52,7 @@
     <string name="videoformat_hevcalways">Prefira HEVC</string>
     <string name="videoformat_auto">Automático (recomendado)</string>
     <string name="fps_120">120 FPS</string>
+    <string name="fps_half_display">Metade da tela (%1$d FPS)</string>
     <string name="audioconf_stereo">Stereo</string>
     <string name="audioconf_51surround">5.1 Surround</string>
     <string name="audioconf_71surround">7.1 Surround</string>

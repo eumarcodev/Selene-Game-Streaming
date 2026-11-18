@@ -267,6 +267,26 @@ public class StreamSettings extends AppCompatActivity {
             nativeFramerateShown = true;
         }
 
+        // Half of the display refresh rate, for panels that will not switch to the stream rate (for example
+        // a 90 Hz tablet that ignores a 60 Hz request): every frame then stays on screen for exactly two
+        // refreshes, which is much more even than 60 fps on 90 Hz.
+        private void addHalfRefreshRateEntry(float refreshRate) {
+            int half = Math.round(refreshRate / 2);
+            if (half < 24) {
+                return;
+            }
+
+            ListPreference pref = (ListPreference) findPreference(PreferenceConfiguration.FPS_PREF_STRING);
+            String fpsValue = Integer.toString(half);
+            for (CharSequence value : pref.getEntryValues()) {
+                if (fpsValue.equals(value.toString())) {
+                    return;
+                }
+            }
+
+            appendPreferenceEntry(pref, getResources().getString(R.string.fps_half_display, half), fpsValue);
+        }
+
         private void removeValue(String preferenceKey, String value, Runnable onMatched) {
             int matchingCount = 0;
 
@@ -627,6 +647,7 @@ public class StreamSettings extends AppCompatActivity {
                 }
                 // Never remove 30 FPS or 60 FPS
             }
+            addHalfRefreshRateEntry(display.getRefreshRate());
             addNativeFrameRateEntry(maxSupportedFps, false);
 
             // Android L introduces the drop duplicate behavior of releaseOutputBuffer()

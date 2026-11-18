@@ -373,6 +373,7 @@
     <string name="fps_60">60 FPS</string>
     <string name="fps_90">90 FPS</string>
     <string name="fps_120">120 FPS</string>
+    <string name="fps_half_display">Half of the display (%1$d FPS)</string>
 
     <string name="audioconf_stereo">Stereo</string>
     <string name="audioconf_51surround">5.1 Surround Sound</string>

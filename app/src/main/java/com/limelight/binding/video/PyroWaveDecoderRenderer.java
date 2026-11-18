@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.eumarcodev.selene.pyrowave.PyroWaveNative;
+import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.nvstream.av.video.VideoDecoderRenderer;
 
 /**
@@ -43,6 +44,12 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     private final long customSkipAgeMs;
     private final AtomicInteger framesDecoded = new AtomicInteger();
     private final AtomicInteger framesSkipped = new AtomicInteger();
+    private final AtomicInteger framesSkippedNewer = new AtomicInteger();
+    private final AtomicLong queueWaitSumMs = new AtomicLong();
+    private final AtomicLong queueWaitMaxMs = new AtomicLong();
+    // First packet received to frame queued: how long the depacketizer held the frame
+    private final AtomicLong assemblySumMs = new AtomicLong();
+    private final AtomicLong assemblyMaxMs = new AtomicLong();
     private final AtomicInteger framesSeen = new AtomicInteger();
     private final AtomicLong frameBytes = new AtomicLong();
     private final AtomicInteger maxFrameBytes = new AtomicInteger();
@@ -150,7 +157,17 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             hostLatencyTenthsMs.addAndGet(frameHostProcessingLatency);
             hostLatencyFrames.incrementAndGet();
         }
-        if (start - enqueueTimeMs > skipAgeMs()) {
+        long assemblyMs = Math.max(0, enqueueTimeMs - receiveTimeMs);
+        assemblySumMs.addAndGet(assemblyMs);
+        assemblyMaxMs.accumulateAndGet(assemblyMs, Math::max);
+        long queueWaitMs = Math.max(0, start - enqueueTimeMs);
+        queueWaitSumMs.addAndGet(queueWaitMs);
+        queueWaitMaxMs.accumulateAndGet(queueWaitMs, Math::max);
+        if (newerFramesWaiting()) {
+            // A newer frame is already queued: showing this one would only add a frame of latency
+            framesSkipped.incrementAndGet();
+            framesSkippedNewer.incrementAndGet();
+        } else if (queueWaitMs > skipAgeMs()) {
             framesSkipped.incrementAndGet();
         } else {
             PyroWaveNative.nativeSubmitFrame(h, decodeUnitData, decodeUnitLength);
@@ -158,6 +175,21 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             framesDecoded.incrementAndGet();
         }
         return DR_OK;
+    }
+
+    /**
+     * Whether the frame about to be decoded should be dropped because newer ones are already waiting.
+     *
+     * Without pacing, "lowest latency" and "custom" always show the newest frame, so one newer frame is
+     * enough. With pacing a newer frame waiting is the normal case (it is presented at the next slot), and
+     * dropping the current one would show the previous picture for two slots, so only a second newer
+     * frame means the queue is really falling behind. "Smooth" also allows one frame of backlog, which
+     * bounds its latency instead of letting the queue grow when the device is slower than the host.
+     */
+    private boolean newerFramesWaiting() {
+        int pending = MoonBridge.getPendingVideoFrames();
+        int allowed = (framePacing || POLICY_SMOOTH.equals(latencyPolicy)) ? 1 : 0;
+        return pending > allowed;
     }
 
     /** Frames that waited longer than this are skipped. Long.MAX_VALUE means never. */
@@ -197,6 +229,11 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             statsStartMs = now;
 
             int seen = framesSeen.getAndSet(0);
+            int skippedNewer = framesSkippedNewer.getAndSet(0);
+            long queueWaitSum = queueWaitSumMs.getAndSet(0);
+            long queueWaitMax = queueWaitMaxMs.getAndSet(0);
+            long assemblySum = assemblySumMs.getAndSet(0);
+            long assemblyMax = assemblyMaxMs.getAndSet(0);
             StreamOverlayFormatter.VideoInfo info = new StreamOverlayFormatter.VideoInfo();
             info.width = width;
             info.height = height;
@@ -220,8 +257,10 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             if (info.arrivalJitterMs >= 0) {
                 // Next to the stage times the native player logs once a second
                 android.util.Log.i("SelenePyroWave", String.format(java.util.Locale.US,
-                        "arrival ms: jitter %.1f, longest gap %d, skipped %d, host %.1f",
-                        info.arrivalJitterMs, info.arrivalMaxGapMs, info.skipped, info.hostLatencyMs));
+                        "arrival ms: jitter %.1f, longest gap %d, skipped %d (newer waiting %d), host %.1f, queue wait avg %.1f max %d, assembly avg %.1f max %d",
+                        info.arrivalJitterMs, info.arrivalMaxGapMs, info.skipped, skippedNewer, info.hostLatencyMs,
+                        seen == 0 ? 0.0 : (double) queueWaitSum / seen, queueWaitMax,
+                        seen == 0 ? 0.0 : (double) assemblySum / seen, assemblyMax));
             }
             synchronized (handleLock) {
                 if (handle != 0 && PyroWaveNative.nativeStageStats(handle, stageMs) > 0) {
