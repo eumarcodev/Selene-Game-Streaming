@@ -3,6 +3,7 @@ name: Cut release or hotfix
 # Manual workflow that opens a release or hotfix branch and starts its first release candidate.
 #   release: creates release/X.Y from develop       (default X.Y: one minor above the latest stable)
 #   hotfix:  creates hotfix/X.Y.Z from master       (default X.Y.Z: next patch of the latest stable)
+#            no RC is started: the branch equals master, the first push of a fix publishes rc.1
 # Pushes to those branches build release candidates (rc.yml); the stable release is a tag on master (stable.yml).
 on:
   workflow_dispatch:
@@ -86,11 +87,19 @@ jobs:
           echo "branch=${branch}" >> "$GITHUB_OUTPUT"
           echo "Created ${branch} from ${source} (${sha})" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # Pushes made with the workflow token do not trigger other workflows, so start the first RC explicitly
+      # Pushes made with the workflow token do not trigger other workflows, so start the first RC explicitly.
+      # A hotfix branch has nothing beyond master yet, so its first RC comes from the first pushed fix.
       - name: Start the first release candidate
+        if: inputs.kind == 'release'
         env:
           BRANCH: ${{ steps.cut.outputs.branch }}
         run: |
           set -euo pipefail
           gh workflow run rc.yml --repo "${GITHUB_REPOSITORY}" --ref "${BRANCH}"
           echo "Started rc.yml on ${BRANCH}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Next step
+        if: inputs.kind == 'hotfix'
+        env:
+          BRANCH: ${{ steps.cut.outputs.branch }}
+        run: echo "Push the fix to ${BRANCH}; the push publishes the first release candidate." | tee -a "$GITHUB_STEP_SUMMARY"

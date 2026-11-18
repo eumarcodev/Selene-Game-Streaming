@@ -53,7 +53,8 @@ commits or to replace today's nightly).
 
 **Actions > Cut release or hotfix > Run workflow**, kind `release`. The version defaults to one minor above the latest
 stable (or type `X.Y`). It creates `release/X.Y` from `develop` and starts `vX.Y.0-rc.1`. Every further push to that
-branch (bug fixes) publishes the next RC.
+branch (bug fixes) publishes the next RC. Commits that are already on `master` are never published as an RC, so if
+`develop` has nothing new, no RC is created.
 
 ### Publish the stable release
 
@@ -70,7 +71,8 @@ branch (bug fixes) publishes the next RC.
 ### Hotfix
 
 1. **Cut release or hotfix**, kind `hotfix`. The version defaults to the next patch of the latest stable
-   (`1.4.1`). It creates `hotfix/1.4.1` from `master` and starts `v1.4.1-rc.1`.
+   (`1.4.1`). It creates `hotfix/1.4.1` from `master`. No RC is started yet: the branch is identical to the
+   latest stable release.
 2. Push the fix to that branch. Each push publishes a new RC to test.
 3. Open a PR from `hotfix/1.4.1` to `master`, merge it, and tag `v1.4.1` as above.
 
