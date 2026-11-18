@@ -2,6 +2,8 @@ name: Build (Android)
 
 # Reusable workflow: builds the Selene Game Streaming APKs (nonRoot_game flavor, one per ABI) and uploads them as a
 # workflow artifact. Called by pr.yml, nightly.yml, rc.yml and stable.yml. It never publishes anything.
+# With play-bundle, it also builds the Google Play bundle (nonRoot_play flavor, AAB) into the "<artifact-name>-play"
+# artifact, which play.yml uploads to Google Play.
 # Releases are signed with the keystore stored in the repository secrets; pull request builds are not signed.
 on:
   workflow_call:
@@ -17,6 +19,11 @@ on:
         default: ""
       sign:
         description: Sign the APKs with the release keystore (fails if the secrets are missing)
+        type: boolean
+        required: false
+        default: false
+      play-bundle:
+        description: Also build the signed Google Play bundle (AAB of the nonRoot_play flavor); requires sign
         type: boolean
         required: false
         default: false
@@ -102,7 +109,15 @@ jobs:
         run: |
           set -euo pipefail
           code=$(git rev-list --count HEAD)
-          ./gradlew assembleNonRoot_gameRelease --no-daemon -PversionName="${VERSION}" -PversionCode="${code}"
+          tasks=(assembleNonRoot_gameRelease)
+          if [[ "${PLAY_BUNDLE}" == "true" ]]; then
+            [[ "${SIGN}" == "true" ]] || { echo "::error::play-bundle requires sign"; exit 1; }
+            tasks+=(bundleNonRoot_playRelease)
+          fi
+          ./gradlew "${tasks[@]}" --no-daemon -PversionName="${VERSION}" -PversionCode="${code}"
+        env:
+          PLAY_BUNDLE: ${{ inputs.play-bundle }}
+          SIGN: ${{ inputs.sign }}
 
       - name: Rename the APKs
         run: |
@@ -121,4 +136,22 @@ jobs:
         with:
           name: ${{ inputs.artifact-name }}
           path: dist/*.apk
+          if-no-files-found: error
+
+      # The AAB already carries the native debug symbols (ndk.debugSymbolLevel); mapping.txt deobfuscates Java crashes
+      - name: Collect the Play bundle
+        if: inputs.play-bundle
+        run: |
+          set -euo pipefail
+          mkdir -p play
+          cp app/build/outputs/bundle/nonRoot_playRelease/app-nonRoot_play-release.aab "play/Selene-${VERSION}-play.aab"
+          cp app/build/outputs/mapping/nonRoot_playRelease/mapping.txt play/mapping.txt
+          ls -la play
+
+      - name: Upload the Play bundle
+        if: inputs.play-bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}-play
+          path: play/
           if-no-files-found: error

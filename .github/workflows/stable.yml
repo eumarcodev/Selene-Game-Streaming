@@ -3,6 +3,8 @@ name: Stable release
 # Pushing a tag vX.Y.Z (no suffix) on a commit of master builds and publishes the stable release:
 #   git tag v1.4.0 && git push origin v1.4.0
 # Afterwards, pull requests are opened to bring master back into develop (and into open release branches).
+# When the repository variable PLAY_PUBLISHING is "true", the release is also uploaded to the Google Play production
+# track (see .github/RELEASING.md, section "Google Play").
 on:
   push:
     tags:
@@ -47,6 +49,7 @@ jobs:
       version: ${{ needs.prepare.outputs.version }}
       ref: ${{ github.sha }}
       sign: true
+      play-bundle: ${{ vars.PLAY_PUBLISHING == 'true' }}
 
   publish:
     name: Publish release
@@ -74,6 +77,20 @@ jobs:
             --title "Selene ${TAG}" \
             --latest \
             --generate-notes
+
+  play:
+    name: Google Play
+    needs: [prepare, build, publish]
+    if: vars.PLAY_PUBLISHING == 'true'
+    uses: ./.github/workflows/play.yml
+    secrets:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      track: production
+      # PLAY_ROLLOUT (e.g. 0.2) starts a staged rollout; finish it in the Play Console. Empty = everyone.
+      status: ${{ vars.PLAY_RELEASE_STATUS || (vars.PLAY_ROLLOUT && 'inProgress') || 'completed' }}
+      user-fraction: ${{ vars.PLAY_ROLLOUT }}
 
   sync-back:
     name: Open sync pull requests

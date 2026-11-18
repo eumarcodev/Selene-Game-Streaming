@@ -23,6 +23,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.limelight.utils.DeviceUtils;
+import com.limelight.utils.UiHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +42,7 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_axitest);
+        UiHelper.applySystemBarInsets(this, true);
 
         tx_gamepad_info = findViewById(R.id.tx_game_pad_info);
         TextView tx_content = findViewById(R.id.tx_content);

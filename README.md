@@ -158,7 +158,6 @@ Pull requests and ideas are welcome.
 
 ## Downloads
 * [Download APK directly](https://github.com/eumarcodev/Selene-Game-Streaming/releases)
-* [Use Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.eumarcodev.selene%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Feumarcodev%2FSelene-Game-Streaming%22%2C%22author%22%3A%22eumarcodev%22%2C%22name%22%3A%22Selene%20Game%20Streaming%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22nonRoot%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D)%5C%22%7D%22%7D) (recommended)
 
 ## Building
 * Install Android Studio and the Android NDK
