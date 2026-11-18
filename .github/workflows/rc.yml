@@ -1,8 +1,8 @@
 name: Release candidate
 
 # Every merge (push) to develop builds a release candidate and publishes it as a pre-release.
-# The version comes from the VERSION file at the repository root:
-#   VERSION 1.10.0 -> v1.10.0-rc.1, v1.10.0-rc.2, ...
+# The version comes from the version.txt file at the repository root:
+#   version.txt 1.10.0 -> v1.10.0-rc.1, v1.10.0-rc.2, ...
 # Changes that cannot affect the binaries (docs, GitHub config other than the build) do not build an RC.
 # A tested RC becomes stable with promote.yml.
 # When the repository variable PLAY_PUBLISHING is "true", each RC is also uploaded to a Google Play testing track
@@ -11,12 +11,14 @@ on:
   push:
     branches:
       - develop
-    # Later patterns win: everything, minus docs and .github, plus the build workflow itself
+    # Later patterns win: everything, minus docs, .github and version.txt, plus the build workflow itself.
+    # A version.txt change alone has nothing new to test; the code that comes with it triggers the RC.
     paths:
       - "**"
       - "!**.md"
       - "!docs/**"
       - "!.github/**"
+      - "!version.txt"
       - ".github/workflows/build.yml"
   workflow_dispatch:
 
@@ -50,13 +52,13 @@ jobs:
           fail() { echo "::error::$1"; exit 1; }
 
           sha=$(git rev-parse HEAD)
-          base=$(tr -d ' \r\n' < VERSION)
-          [[ "${base}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "VERSION must look like X.Y.Z, got '${base}'"
+          base=$(tr -d ' \r\n' < version.txt)
+          [[ "${base}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version.txt must look like X.Y.Z, got '${base}'"
           git rev-parse -q --verify "refs/tags/v${base}" > /dev/null &&
-            fail "v${base} is already released. Bump VERSION on develop (promote.yml does it after each release)."
+            fail "v${base} is already released. Bump version.txt on develop (promote.yml does it after each release)."
           latest=$( (git tag -l 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true) | sed 's/^v//' | sort -V | tail -1)
           if [[ -n "${latest}" && "$(printf '%s\n%s\n' "${latest}" "${base}" | sort -V | tail -1)" != "${base}" ]]; then
-            fail "VERSION ${base} is lower than the latest stable release v${latest}"
+            fail "version.txt ${base} is lower than the latest stable release v${latest}"
           fi
 
           build=true
