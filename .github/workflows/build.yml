@@ -1,7 +1,7 @@
 name: Build (Android)
 
 # Reusable workflow: builds the Selene Game Streaming APKs (nonRoot_game flavor, one per ABI) and uploads them as a
-# workflow artifact. Called by pr.yml, nightly.yml, rc.yml and stable.yml. It never publishes anything.
+# workflow artifact. Called by pr.yml, rc.yml and promote.yml. It never publishes anything.
 # With play-bundle, it also builds the Google Play bundle (nonRoot_play flavor, AAB) into the "<artifact-name>-play"
 # artifact, which play.yml uploads to Google Play.
 # Releases are signed with the keystore stored in the repository secrets; pull request builds are not signed.
@@ -103,12 +103,14 @@ jobs:
             echo "SELENE_KEY_PASSWORD=${KEY_PASSWORD}"
           } >> "$GITHUB_ENV"
 
-      # versionCode must grow with every build so that Android accepts the update: the number of commits works
-      # because nightly, RC and stable builds are always newer than the commits they were cut from.
+      # versionCode must grow with every build so that Android and Google Play accept the update. It is the number of
+      # commits times 10, plus 1 for a stable build: a stable release is built from the same commit as the RC it
+      # promotes, so it still gets a higher code than that RC, and any later RC (more commits) is higher again.
       - name: Build
         run: |
           set -euo pipefail
-          code=$(git rev-list --count HEAD)
+          code=$(( $(git rev-list --count HEAD) * 10 ))
+          [[ "${VERSION}" == *-* ]] || code=$((code + 1))
           tasks=(assembleNonRoot_gameRelease)
           if [[ "${PLAY_BUNDLE}" == "true" ]]; then
             [[ "${SIGN}" == "true" ]] || { echo "::error::play-bundle requires sign"; exit 1; }

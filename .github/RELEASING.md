@@ -1,85 +1,63 @@
 # Releasing
 
-Selene Game Streaming publishes three kinds of builds: **nightly**, **release candidate (RC)** and **stable**. Releases are
-created by the workflows in [`.github/workflows`](workflows); nothing is published by hand.
+Selene Game Streaming publishes two kinds of builds: **release candidate (RC)** and **stable**. Releases are created by the
+workflows in [`.github/workflows`](workflows); nothing is published by hand. The flow is made for a single maintainer:
+no release or hotfix branches, and one click to go from a tested RC to stable.
 
-## Channels
+## Flow
+
+```
+feature/* --PR (no CI build)--> develop --merge--> RC vX.Y.Z-rc.N   (rc.yml, automatic)
+                                                     |
+                                       test it, then Actions > Promote to stable
+                                                     |
+                     master fast-forwards to that commit --> STABLE vX.Y.Z (latest)
+                     VERSION on develop --> next minor
+```
 
 | Channel | Source | When | Version | GitHub release |
 |---|---|---|---|---|
-| Nightly | `develop` | every day at 03:00 (Brasilia), only if `develop` has new commits | `1.4.0-nightly.20261116` | pre-release, last 7 kept |
-| RC | `release/X.Y` or `hotfix/X.Y.Z` | every push to the branch | `1.3.0-rc.2` | pre-release |
-| Stable | tag `vX.Y.Z` on `master` | when you push the tag | `1.3.0` | latest |
+| RC | `develop` | every merge that changes more than docs | `1.9.0-rc.3` | pre-release |
+| Stable | the promoted RC's commit | when you run **Promote to stable** | `1.10.0` | latest |
 
-The nightly version is one minor above the highest stable/rc version already tagged, so a nightly is always newer than
-the release candidate in progress. With the same `X.Y.Z`, the order is `nightly < rc < stable`.
-
-## Branches
-
-```
-feature/* --PR--> develop --daily--> NIGHTLY
-                     |
-                     +-- cut-release --> release/1.4 --push--> RC 1.4.0-rc.1, rc.2, ...
-                                              |
-                                              +-- PR --> master -- tag v1.4.0 --> STABLE 1.4.0
-                                                                         |
-                                                                         +-- PR --> develop (automatic)
-
-master --- cut-release (hotfix) --> hotfix/1.4.1 --push--> RC 1.4.1-rc.1 --PR--> master -- tag v1.4.1 --> STABLE
-```
-
-- `develop`: integration branch, pull requests go here.
-- `release/X.Y`: cut from `develop` when the release is feature complete. Only fixes go in.
-- `hotfix/X.Y.Z`: cut from `master`, only for the **latest** stable line.
-- `master`: only receives finished releases. It always contains what was published as stable.
-
-## One-time setup
-
-1. Create `master` and `develop` from the current default branch (`moonlight-noir`), then make `master` the default branch (scheduled workflows run from it):
-   `git push origin moonlight-noir:refs/heads/master moonlight-noir:refs/heads/develop`
-2. In **Settings > Actions > General**, enable **Allow GitHub Actions to create and approve pull requests**. Without
-   it the stable workflow cannot open the PRs that bring `master` back into `develop`.
-3. Add the signing secrets (below).
-4. Optional: protect `master` and `release/**` (require a pull request).
+- `develop`: integration branch; pull requests go here.
+- `master`: only moves forward to released commits (fast-forward, no merge commits, no PRs back to `develop`).
+- `VERSION` (repository root, on `develop`): the version the next stable release will have. RCs are numbered after it.
 
 ## How to
 
-### Nightly
+### Release candidate
 
-Nothing to do. To build one now: **Actions > Nightly > Run workflow** (tick *force* to rebuild even without new
-commits or to replace today's nightly).
+Merge a pull request into `develop`. `rc.yml` builds and publishes the next `vX.Y.Z-rc.N`. A newer merge cancels an
+RC that is still building. Merges that only change Markdown, `docs/` or `.github/` (except `build.yml`) do not build an RC. To build one anyway:
+**Actions > Release candidate > Run workflow** on `develop`.
 
-### Cut a release candidate
+### Stable
 
-**Actions > Cut release or hotfix > Run workflow**, kind `release`. The version defaults to one minor above the latest
-stable (or type `X.Y`). It creates `release/X.Y` from `develop` and starts `vX.Y.0-rc.1`. Every further push to that
-branch (bug fixes) publishes the next RC.
+**Actions > Promote to stable > Run workflow**. Leave the RC field empty to promote the latest RC of the current
+`VERSION`, or type a specific one (`v1.10.0-rc.2`). The workflow:
 
-### Publish the stable release
+1. builds that RC's commit with the stable version (the version is baked into the binaries, so this is a new build);
+2. fast-forwards `master` to that commit and publishes `vX.Y.Z` as the latest release, with notes since the previous
+   stable release;
+3. bumps `VERSION` on `develop` to the next minor version (`1.10.0` -> `1.11.0`).
 
-1. Open a pull request from `release/X.Y` to `master` and merge it.
-2. Tag the merge commit:
-   ```bash
-   git checkout master && git pull
-   git tag v1.4.0
-   git push origin v1.4.0
-   ```
-3. `stable.yml` checks that the tag is on `master`, builds, publishes the release as *latest*, and opens PRs from
-   `master` to `develop`. Merge them so `develop` sees the new tag.
+### Patch release
 
-### Hotfix
+Set `VERSION` to the patch version (e.g. `1.10.1`) in the pull request with the fix. Its merge builds
+`v1.10.1-rc.1`; promote it as usual. After it, `VERSION` goes to the next minor (`1.11.0`).
 
-1. **Cut release or hotfix**, kind `hotfix`. The version defaults to the next patch of the latest stable
-   (`1.4.1`). It creates `hotfix/1.4.1` from `master` and starts `v1.4.1-rc.1`.
-2. Push the fix to that branch. Each push publishes a new RC to test.
-3. Open a PR from `hotfix/1.4.1` to `master`, merge it, and tag `v1.4.1` as above.
+If `develop` already has unreleased work that must not ship in the patch, ship it all anyway, or revert it first:
+there are no hotfix branches in this flow.
 
-Hotfixes only target the latest stable line. Fixing an older line needs its own support branch, which is not covered.
+## One-time setup
+
+Add the signing secrets (see [Signing](#signing)). Google Play publishing is optional (see [Google Play](#google-play)).
 
 ## Pull requests
 
-`pr.yml` builds an **unsigned** APK when the PR changes the app, Gradle files, the submodule or the workflows
-(`app/`, `gradle/`, `*.gradle`, `.gitmodules`, `.github/workflows/`). Draft PRs are skipped. Add the `build` label to force it.
+`pr.yml` builds nothing by default: build and test locally before opening the PR. Add the `build` label to have an
+**unsigned** APK built on the PR (it is not published).
 
 ## APK files
 
@@ -101,18 +79,22 @@ Repository secrets (**Settings > Secrets and variables > Actions**):
 | `SELENE_KEY_ALIAS` | key alias (`selene`) |
 | `SELENE_KEY_PASSWORD` | key password |
 
-Nightly, RC and stable builds fail if a secret is missing. For a local signed build, export `SELENE_KEYSTORE_FILE`,
+RC and stable builds fail if a secret is missing. For a local signed build, export `SELENE_KEYSTORE_FILE`,
 `SELENE_KEYSTORE_PASSWORD`, `SELENE_KEY_ALIAS` and `SELENE_KEY_PASSWORD` before `./gradlew assembleNonRoot_gameRelease`.
 
 ## Versions
 
-The version comes from the branch and tag names (see above) and is passed to Gradle as `-PversionName`.
-`versionCode` is the number of commits of the built revision, so it grows with every build. Local builds without
-these properties get `0.0.0-dev` and code 1. Gradle needs JDK 17 to 21 (JDK 25 breaks the Android Gradle plugin).
+`VERSION` gives `X.Y.Z`; `rc.yml` adds `-rc.N`. The RC workflow refuses a `VERSION` that is already released or lower
+than the latest stable release. The version is passed to Gradle as `-PversionName`. Local builds without these
+properties get `0.0.0-dev` and code 1. Gradle needs JDK 17 to 21 (JDK 25 breaks the Android Gradle plugin).
 
-Google Play rejects a `versionCode` it has already received, on any track. Stable is built from the merge commit on
-`master`, which has more commits than any RC of that release, so its code is always higher. Re-running a stable or RC
-workflow after its Play upload succeeded fails at the Play step for this reason; that is expected.
+`versionCode` is the number of commits of the built revision times 10, plus 1 for a stable build. A stable release is
+built from the same commit as the RC it promotes, so the `+1` keeps its code above that RC, and any later RC has more
+commits and a higher code again. Google Play rejects a `versionCode` it has already received, on any track, so
+re-running an RC or a promotion after its Play upload succeeded fails at the Play step; that is expected.
+
+Old releases (`release/*`, `hotfix/*` branches and nightly tags) were made by the previous flow and are left as they
+are. Their codes were the plain commit count, so the new codes are all higher.
 
 ## Google Play
 
@@ -123,7 +105,6 @@ not APKs, and it carries the native debug symbols; `mapping.txt` is uploaded too
 
 | Channel | Play track |
 |---|---|
-| Nightly | not published |
 | RC | `PLAY_RC_TRACK` (default `alpha`, the closed testing track) |
 | Stable | `production` |
 
@@ -155,7 +136,7 @@ Store the JSON key like the keystore: it is enough to publish the app. Revoke it
 
 | Variable | Default | Effect |
 |---|---|---|
-| `PLAY_PUBLISHING` | (unset) | `true` turns the Play upload on in `rc.yml` and `stable.yml` |
+| `PLAY_PUBLISHING` | (unset) | `true` turns the Play upload on in `rc.yml` and `promote.yml` |
 | `PLAY_RC_TRACK` | `alpha` | track for RCs (`alpha`, `beta`, `internal` or a custom closed track) |
 | `PLAY_ROLLOUT` | (unset) | fraction for a staged production rollout, e.g. `0.2`; finish or halt it in the Play Console |
 | `PLAY_RELEASE_STATUS` | `completed` | `draft` while the app has never been published (the API refuses other statuses then) |
