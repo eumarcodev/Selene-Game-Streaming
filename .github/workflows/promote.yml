@@ -3,14 +3,14 @@ name: Promote to stable
 # Manual (Actions > Promote to stable > Run workflow): turns a tested release candidate into the stable release.
 #   1. builds the RC's commit again with the stable version (the version is baked into the binaries)
 #   2. fast-forwards master to that commit and publishes vX.Y.Z as the latest release
-#   3. bumps VERSION on develop to the next minor version, so the next merge starts the next RC series
+#   3. bumps version.txt on develop to the next minor version, so the next merge starts the next RC series
 # When the repository variable PLAY_PUBLISHING is "true", the release is also uploaded to the Google Play production
 # track (see .github/RELEASING.md, section "Google Play").
 on:
   workflow_dispatch:
     inputs:
       rc:
-        description: "RC to promote (e.g. v1.10.0-rc.2). Empty: the latest RC of the version in develop's VERSION file."
+        description: "RC to promote (e.g. v1.10.0-rc.2). Empty: the latest RC of the version in develop's version.txt file."
         type: string
         required: false
         default: ""
@@ -47,9 +47,9 @@ jobs:
 
           rc="${RC// /}"
           if [[ -z "${rc}" ]]; then
-            base=$(tr -d ' \r\n' < VERSION)
+            base=$(tr -d ' \r\n' < version.txt)
             rc=$( (git tag -l "v${base}-rc.*" || true) | sort -V | tail -1)
-            [[ -n "${rc}" ]] || fail "There is no release candidate for ${base} yet (VERSION on develop)"
+            [[ -n "${rc}" ]] || fail "There is no release candidate for ${base} yet (version.txt on develop)"
           fi
           [[ "${rc}" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-rc\.[0-9]+$ ]] || fail "RC must look like vX.Y.Z-rc.N, got '${rc}'"
           version="${BASH_REMATCH[1]}"
@@ -136,10 +136,10 @@ jobs:
       user-fraction: ${{ vars.PLAY_ROLLOUT }}
 
   bump:
-    name: Bump VERSION on develop
+    name: Bump version.txt on develop
     needs: [prepare, publish]
     runs-on: ubuntu-latest
-    # The release is already out; a failure here only means VERSION has to be bumped by hand
+    # The release is already out; a failure here only means version.txt has to be bumped by hand
     continue-on-error: true
     permissions:
       contents: write
@@ -154,16 +154,16 @@ jobs:
       - name: Bump
         run: |
           set -euo pipefail
-          current=$(tr -d ' \r\n' < VERSION)
+          current=$(tr -d ' \r\n' < version.txt)
           if [[ "${current}" != "${VERSION}" ]]; then
-            echo "VERSION on develop is ${current}, not ${VERSION}; leaving it alone" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "version.txt on develop is ${current}, not ${VERSION}; leaving it alone" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           IFS=. read -r major minor _ <<< "${VERSION}"
           next="${major}.$((minor + 1)).0"
-          echo "${next}" > VERSION
+          echo "${next}" > version.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "chore: start ${next} after releasing v${VERSION}"
           git push origin HEAD:develop
-          echo "VERSION on develop: ${next}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "version.txt on develop: ${next}" | tee -a "$GITHUB_STEP_SUMMARY"
