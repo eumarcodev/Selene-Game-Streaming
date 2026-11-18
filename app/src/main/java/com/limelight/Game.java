@@ -810,6 +810,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             chosenFrameRate *= prefConfig.framePacingWarpFactor;
         }
 
+        if (prefConfig.enablePyroWave) {
+            // PyroWave encodes 4:2:0, which needs an even width and height: the host refuses an odd size
+            // (for example a custom 1715x1071) and the stream never starts. Ask for the even size below it;
+            // the decoder is set up with the same size, so client and host agree.
+            displayWidth &= ~1;
+            displayHeight &= ~1;
+        }
+
         StreamConfiguration config = new StreamConfiguration.Builder()
                 .setResolution(
                         displayWidth,
