@@ -275,6 +275,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public static final String EXTRA_VDISPLAY = "VirtualDisplay";
     public static final String EXTRA_SERVER_COMMANDS = "ServerCommands";
     public static final String EXTRA_DISPLAY_ID = "DisplayID";
+    /** Boolean: ask Helios for a test session with a synthetic picture (eumarcodev/Helios-Server#128). */
+    public static final String EXTRA_TEST_PATTERN = "TestPattern";
 
     public static final String CLIPBOARD_IDENTIFIER = "ArtemisStreaming";
 
@@ -832,6 +834,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setLaunchRefreshRate(prefConfig.fps)
                 .setRefreshRate(chosenFrameRate)
                 .setVirtualDisplay(vDisplay)
+                .setTestPattern(wantsTestPattern())
                 .setResolutionScaleFactor(prefConfig.resolutionScaleFactor)
                 .setApp(app)
                 .setEnableUltraLowLatency(prefConfig.enableUltraLowLatency)
@@ -3824,6 +3827,26 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (appName != null) {
             // This may be null if launched from the "Resume Session" PC context menu item
             shortcutHelper.reportGameLaunched(computer, app);
+        }
+    }
+
+    /**
+     * Test sessions are asked by the automatic setup through EXTRA_TEST_PATTERN. Debug builds also honour
+     * `adb shell setprop debug.selene.testpattern 1`, to check the host side by hand.
+     */
+    private boolean wantsTestPattern() {
+        if (getIntent().getBooleanExtra(EXTRA_TEST_PATTERN, false)) {
+            return true;
+        }
+        if (!BuildConfig.DEBUG) {
+            return false;
+        }
+        try {
+            Object value = Class.forName("android.os.SystemProperties").getMethod("get", String.class)
+                    .invoke(null, "debug.selene.testpattern");
+            return "1".equals(value);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return false;
         }
     }
 
