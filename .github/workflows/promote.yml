@@ -1,4 +1,5 @@
 name: Promote to stable
+run-name: Promote ${{ inputs.rc || 'latest RC' }} to stable
 
 # Manual (Actions > Promote to stable > Run workflow): turns a tested release candidate into the stable release.
 #   1. takes the stable build (vX.Y.Z) that the RC's run made in parallel with the RC (rc.yml, artifact
@@ -73,6 +74,7 @@ jobs:
             echo "previous=${previous}"
           } >> "$GITHUB_OUTPUT"
           echo "Promote ${rc} (${sha}) to v${version}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Promote to stable::${rc} -> v${version}"
 
       # The RC run of this commit built vX.Y.Z next to the RC; reuse it when its artifacts are still there
       # (with Play publishing on, the Play bundle artifact must be there too)
@@ -100,7 +102,7 @@ jobs:
           fi
 
   build:
-    name: Build
+    name: Build v${{ needs.prepare.outputs.version }}
     needs: prepare
     if: needs.prepare.outputs.rc-run == ''
     uses: ./.github/workflows/build.yml
@@ -113,7 +115,7 @@ jobs:
       artifact-name: selene-android-stable
 
   publish:
-    name: Publish release
+    name: Publish release v${{ needs.prepare.outputs.version }}
     needs: [prepare, build]
     # Runs after the build, or without it when the RC's stable build is reused
     if: >-
