@@ -228,6 +228,11 @@
             android:summary="@string/summary_enable_pyrowave"
             android:title="@string/title_enable_pyrowave"
             app:iconSpaceReserved="false" />
+        <Preference
+            android:key="pyrowave_measure_device"
+            android:summary="@string/summary_pyrowave_measure"
+            android:title="@string/title_pyrowave_measure"
+            app:iconSpaceReserved="false" />
         <ListPreference
             android:defaultValue="lowest"
             android:entries="@array/pyrowave_latency_policy_names"

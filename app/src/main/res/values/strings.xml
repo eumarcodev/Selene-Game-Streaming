@@ -333,6 +333,16 @@
     <string name="pw_overlay_pref_auto">auto</string>
     <string name="pw_overlay_pref_nolimit">no limit</string>
     <string name="title_enable_pyrowave">PyroWave (Experimental)</string>
+    <string name="title_pyrowave_measure">Measure this device</string>
+    <string name="summary_pyrowave_measure">Find the largest PyroWave resolution this device decodes in time (about 15 seconds, no stream needed)</string>
+    <string name="pyrowave_measure_starting">Preparing the test pictures…</string>
+    <string name="pyrowave_measure_progress">Measuring %1$dx%2$d (%3$d of %4$d)…</string>
+    <string name="pyrowave_measure_result">PyroWave on this device: up to %1$dx%2$d at %3$d FPS</string>
+    <string name="pyrowave_measure_none">PyroWave on this device: no measured resolution keeps up with %1$d FPS</string>
+    <string name="pyrowave_measure_failed">The device measurement did not finish (%1$s)</string>
+    <string name="title_pyrowave_decode_warning">Resolution too large for PyroWave</string>
+    <string name="text_pyrowave_decode_warning">This device does not decode PyroWave at %1$dx%2$d and %3$d FPS in time, so frames will be dropped. Up to %4$dx%5$d keeps up.</string>
+    <string name="text_pyrowave_decode_warning_none">This device does not decode PyroWave at %1$dx%2$d and %3$d FPS in time, so frames will be dropped. Try a lower frame rate.</string>
     <string name="summary_enable_pyrowave">Low-latency codec for wired or strong Wi-Fi connections. It needs a lot of bandwidth (roughly 200 Mbps and up) and a host running Helios with PyroWave support. Falls back to the regular codecs when unavailable.</string>
     <string name="summary_pyrowave_unsupported">This device does not support PyroWave: %1$s.</string>
     <string name="title_enable_hdr">Enable HDR (Experimental)</string>
