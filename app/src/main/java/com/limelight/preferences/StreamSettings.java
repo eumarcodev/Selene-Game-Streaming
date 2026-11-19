@@ -51,6 +51,7 @@ import com.limelight.LimeLog;
 import com.limelight.PcView;
 import com.limelight.R;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardControllerConfigurationLoader;
+import com.limelight.binding.video.DecodeBenchmarkRunner;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.FileUriUtils;
@@ -63,6 +64,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 public class StreamSettings extends AppCompatActivity {
@@ -171,6 +173,271 @@ public class StreamSettings extends AppCompatActivity {
 
         public SettingsFragment(PreferenceConfiguration prefCfg) {
             prevPrefConfig = prefCfg;
+        }
+
+        // Local PyroWave decode benchmark (eumarcodev/Helios-Server#127): measured the first time PyroWave is
+        // turned on and from "Measure this device"; it only informs, it never changes a setting.
+        private void setupDecodeBenchmark(CheckBoxPreference pyroWavePref) {
+            Preference measure = findPreference("pyrowave_measure_device");
+            if (measure == null) {
+                return;
+            }
+            measure.setOnPreferenceClickListener(preference -> {
+                runDecodeBenchmark();
+                return true;
+            });
+            pyroWavePref.setOnPreferenceChangeListener((preference, newValue) -> {
+                if (Boolean.TRUE.equals(newValue) && loadDecodeBenchmark().isEmpty() && getView() != null) {
+                    // After the change is saved, so the summaries see PyroWave on
+                    getView().post(this::runDecodeBenchmark);
+                }
+                return true;
+            });
+            updateDecodeBenchmarkSummaries(null);
+        }
+
+        private String decodeBenchmarkKey() {
+            return DecodeBenchmark.storageKey(Build.MODEL, BuildConfig.VERSION_CODE);
+        }
+
+        private List<DecodeBenchmark.Result> loadDecodeBenchmark() {
+            if (getActivity() == null) {
+                return java.util.Collections.emptyList();
+            }
+            return DecodeBenchmark.parse(PreferenceManager.getDefaultSharedPreferences(getActivity())
+                    .getString(decodeBenchmarkKey(), null));
+        }
+
+        private void runDecodeBenchmark() {
+            final Activity activity = getActivity();
+            if (activity == null || !isAdded()) {
+                return;
+            }
+            // Encode at the per-frame budget of the PyroWave bitrate in use (the link limit is not known here,
+            // so the automatic value is the video based one: larger frames, a conservative result)
+            PreferenceConfiguration config = PreferenceConfiguration.readPreferences(activity);
+            final int kbps = config.pyroWaveBitrate > 0 ? config.pyroWaveBitrate : PyroWaveBitrate.autoKbps(config.bitrate, 0);
+            final SharedPreferences store = PreferenceManager.getDefaultSharedPreferences(activity);
+            final String key = decodeBenchmarkKey();
+
+            // The test pictures are shown full screen while they are measured: that is the presentation path of a
+            // stream (an offscreen target paces the swapchain and gives wrong times)
+            final android.app.Dialog dialog = new android.app.Dialog(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+            android.widget.FrameLayout root = new android.widget.FrameLayout(activity);
+            final android.view.SurfaceView surfaceView = new android.view.SurfaceView(activity);
+            surfaceView.setKeepScreenOn(true);
+            root.addView(surfaceView, new android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            final android.widget.TextView status = new android.widget.TextView(activity);
+            status.setText(R.string.pyrowave_measure_starting);
+            status.setTextColor(0xFFFFFFFF);
+            status.setBackgroundColor(0xAA000000);
+            int pad = Math.round(16 * getResources().getDisplayMetrics().density);
+            status.setPadding(pad, pad, pad, pad);
+            root.addView(status, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP | android.view.Gravity.START));
+            final android.widget.Button cancel = new android.widget.Button(activity);
+            cancel.setText(android.R.string.cancel);
+            root.addView(cancel, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.BOTTOM | android.view.Gravity.END));
+            dialog.setContentView(root);
+            dialog.setCancelable(false);
+            // Immersive full screen like a stream: system bars on top of the picture make the system compose the
+            // screen on the GPU and shrink the surface, which slowed 1080p by about 2.5 ms per frame here
+            android.view.Window window = dialog.getWindow();
+            if (window != null) {
+                window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    window.getAttributes().layoutInDisplayCutoutMode =
+                            android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    window.setDecorFitsSystemWindows(false);
+                    android.view.WindowInsetsController controller = window.getInsetsController();
+                    if (controller != null) {
+                        controller.hide(WindowInsets.Type.systemBars());
+                        controller.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    }
+                } else {
+                    window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+                }
+            }
+
+            final DecodeBenchmarkRunner[] runner = new DecodeBenchmarkRunner[1];
+            // Each size is measured with the surface buffer at that size, like a stream (setFixedSize)
+            final int[] wanted = new int[2];
+            final java.util.concurrent.atomic.AtomicReference<java.util.concurrent.CountDownLatch> sized =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            final Handler mainHandler = new Handler(android.os.Looper.getMainLooper());
+            final DecodeBenchmarkRunner.SurfaceSizer sizer = (width, height) -> {
+                java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+                synchronized (wanted) {
+                    wanted[0] = width;
+                    wanted[1] = height;
+                }
+                sized.set(latch);
+                mainHandler.post(() -> {
+                    android.graphics.Rect frame = surfaceView.getHolder().getSurfaceFrame();
+                    if (frame.width() == width && frame.height() == height) {
+                        latch.countDown();
+                    } else {
+                        surfaceView.getHolder().setFixedSize(width, height);
+                    }
+                });
+                try {
+                    return latch.await(3, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            };
+            final DecodeBenchmarkRunner.Listener listener = new DecodeBenchmarkRunner.Listener() {
+                @Override
+                public void onProgress(int index, int total, int width, int height) {
+                    if (isAdded()) {
+                        status.setText(getString(R.string.pyrowave_measure_progress, width, height, index + 1, total));
+                    }
+                }
+
+                @Override
+                public void onFinished(List<DecodeBenchmark.Result> results, String error) {
+                    if (results != null) {
+                        store.edit().putString(key, DecodeBenchmark.format(results)).apply();
+                    }
+                    if (dialog.isShowing()) {
+                        dialog.dismiss();
+                    }
+                    if (!isAdded()) {
+                        return;
+                    }
+                    if (results != null) {
+                        updateDecodeBenchmarkSummaries(null);
+                    } else if (error != null) {
+                        Toast.makeText(activity, getString(R.string.pyrowave_measure_failed, error), Toast.LENGTH_LONG).show();
+                    }
+                }
+            };
+            cancel.setOnClickListener(v -> {
+                if (runner[0] != null) {
+                    runner[0].cancel();
+                } else {
+                    dialog.dismiss();
+                }
+            });
+            dialog.setOnKeyListener((d, keyCode, event) -> {
+                if (keyCode == android.view.KeyEvent.KEYCODE_BACK && event.getAction() == android.view.KeyEvent.ACTION_UP) {
+                    cancel.performClick();
+                    return true;
+                }
+                return false;
+            });
+            surfaceView.getHolder().addCallback(new android.view.SurfaceHolder.Callback() {
+                @Override
+                public void surfaceCreated(@NonNull android.view.SurfaceHolder holder) {
+                }
+
+                @Override
+                public void surfaceChanged(@NonNull android.view.SurfaceHolder holder, int format, int width, int height) {
+                    if (runner[0] == null) {
+                        // The native size is the whole display
+                        DisplayMetrics real = new DisplayMetrics();
+                        activity.getWindowManager().getDefaultDisplay().getRealMetrics(real);
+                        runner[0] = DecodeBenchmarkRunner.start(holder.getSurface(), sizer, real.widthPixels,
+                                real.heightPixels, kbps, listener);
+                        return;
+                    }
+                    java.util.concurrent.CountDownLatch latch = sized.get();
+                    synchronized (wanted) {
+                        if (latch != null && width == wanted[0] && height == wanted[1]) {
+                            latch.countDown();
+                        }
+                    }
+                }
+
+                @Override
+                public void surfaceDestroyed(@NonNull android.view.SurfaceHolder holder) {
+                    // The player must stop using the surface before it goes away
+                    if (runner[0] != null) {
+                        runner[0].cancelAndWait();
+                    }
+                }
+            });
+            dialog.show();
+        }
+
+        /** fpsOverride: the frame rate being chosen (not saved yet), or null to read the saved one. */
+        private void updateDecodeBenchmarkSummaries(String fpsOverride) {
+            if (!isAdded()) {
+                return;
+            }
+            SharedPreferences prefs = getPrefs();
+            List<DecodeBenchmark.Result> results = loadDecodeBenchmark();
+            float fps;
+            try {
+                fps = Float.parseFloat(fpsOverride != null ? fpsOverride : prefs.getString(PreferenceConfiguration.FPS_PREF_STRING, "60"));
+            } catch (NumberFormatException e) {
+                fps = 60;
+            }
+            String line = null;
+            if (!results.isEmpty()) {
+                DecodeBenchmark.Result best = DecodeBenchmark.largestSustainable(results, fps);
+                line = best != null
+                        ? getString(R.string.pyrowave_measure_result, best.width, best.height, Math.round(fps))
+                        : getString(R.string.pyrowave_measure_none, Math.round(fps));
+            }
+            Preference measure = findPreference("pyrowave_measure_device");
+            if (measure != null) {
+                measure.setSummary(line != null ? line : getString(R.string.summary_pyrowave_measure));
+            }
+            Preference resolution = findPreference(PreferenceConfiguration.RESOLUTION_PREF_STRING);
+            if (resolution != null) {
+                boolean pyroWaveOn = prefs.getBoolean("checkbox_enable_pyrowave", false);
+                String base = getString(R.string.summary_resolution_list);
+                resolution.setSummary(line != null && pyroWaveOn ? base + "\n" + line : base);
+            }
+        }
+
+        /** Warns once per resolution and frame rate when PyroWave is on and this device cannot decode it in time. */
+        private void maybeWarnDecodeLimit(String resolutionOverride, String fpsOverride) {
+            if (!isAdded()) {
+                return;
+            }
+            SharedPreferences prefs = getPrefs();
+            if (!prefs.getBoolean("checkbox_enable_pyrowave", false)) {
+                return;
+            }
+            List<DecodeBenchmark.Result> results = loadDecodeBenchmark();
+            if (results.isEmpty()) {
+                return;
+            }
+            int width, height;
+            float fps;
+            try {
+                String res = resolutionOverride != null ? resolutionOverride
+                        : prefs.getString(PreferenceConfiguration.RESOLUTION_PREF_STRING, "1280x720");
+                String[] wh = res.split("x");
+                width = Integer.parseInt(wh[0]);
+                height = Integer.parseInt(wh[1]);
+                fps = Float.parseFloat(fpsOverride != null ? fpsOverride : prefs.getString(PreferenceConfiguration.FPS_PREF_STRING, "60"));
+            } catch (RuntimeException e) {
+                return;
+            }
+            if (!DecodeBenchmark.exceeds(results, fps, width, height)) {
+                return;
+            }
+            String combination = width + "x" + height + "@" + Math.round(fps);
+            SharedPreferences store = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            if (combination.equals(store.getString("pyrowave_decode_warned", null))) {
+                return;
+            }
+            store.edit().putString("pyrowave_decode_warned", combination).apply();
+            DecodeBenchmark.Result best = DecodeBenchmark.largestSustainable(results, fps);
+            String text = best != null
+                    ? getString(R.string.text_pyrowave_decode_warning, width, height, Math.round(fps), best.width, best.height)
+                    : getString(R.string.text_pyrowave_decode_warning_none, width, height, Math.round(fps));
+            Dialog.displayDialog(getActivity(), getString(R.string.title_pyrowave_decode_warning), text, false);
         }
 
         protected SharedPreferences getPrefs() {
@@ -697,6 +964,11 @@ public class StreamSettings extends AppCompatActivity {
                         });
                     }
                 }
+                if (reason == null) {
+                    setupDecodeBenchmark(pyroWavePref);
+                } else if (findPreference("pyrowave_measure_device") != null) {
+                    findPreference("pyrowave_measure_device").setEnabled(false);
+                }
             }
 
             // Remove HDR preference for devices below Nougat
@@ -765,6 +1037,8 @@ public class StreamSettings extends AppCompatActivity {
                                 false);
                     }
 
+                    maybeWarnDecodeLimit(valueStr, null);
+
                     // Write the new bitrate value
                     resetBitrateToDefault(prefs, valueStr, null);
 
@@ -786,6 +1060,9 @@ public class StreamSettings extends AppCompatActivity {
                                 getResources().getString(R.string.text_native_res_dialog),
                                 false);
                     }
+
+                    maybeWarnDecodeLimit(null, valueStr);
+                    updateDecodeBenchmarkSummaries(valueStr);
 
                     // Write the new bitrate value
                     resetBitrateToDefault(prefs, null, valueStr);

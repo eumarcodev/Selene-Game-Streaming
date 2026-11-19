@@ -42,4 +42,16 @@ public final class PyroWaveNative {
      * @return the number of frames averaged, 0 when there is nothing new
      */
     public static native int nativeStageStats(long handle, float[] out);
+
+    /**
+     * Local decode benchmark: encodes test pictures of frameBytes each and decodes and presents them back to back
+     * through the normal path. out (3 values): median time per frame in ms (time between two finished frames),
+     * average encoded frame size in bytes, frames measured.
+     *
+     * @return 0, -20 when cancelled, other negatives on errors
+     */
+    public static native int nativeBenchmark(long handle, int frameBytes, int warmup, int frames, float[] out);
+
+    /** Stops a running benchmark (true) or allows the next one to run (false). */
+    public static native void nativeBenchmarkCancel(boolean cancel);
 }

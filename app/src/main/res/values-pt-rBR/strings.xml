@@ -250,6 +250,16 @@
     <string name="pw_overlay_pref_auto">auto</string>
     <string name="pw_overlay_pref_nolimit">sem limite</string>
     <string name="title_enable_pyrowave">PyroWave (Experimental)</string>
+    <string name="title_pyrowave_measure">Medir este aparelho</string>
+    <string name="summary_pyrowave_measure">Descobre a maior resolução PyroWave que este aparelho decodifica a tempo (cerca de 15 segundos, sem stream)</string>
+    <string name="pyrowave_measure_starting">Preparando as imagens de teste…</string>
+    <string name="pyrowave_measure_progress">Medindo %1$dx%2$d (%3$d de %4$d)…</string>
+    <string name="pyrowave_measure_result">PyroWave neste aparelho: até %1$dx%2$d a %3$d FPS</string>
+    <string name="pyrowave_measure_none">PyroWave neste aparelho: nenhuma resolução medida acompanha %1$d FPS</string>
+    <string name="pyrowave_measure_failed">A medição do aparelho não terminou (%1$s)</string>
+    <string name="title_pyrowave_decode_warning">Resolução grande demais para o PyroWave</string>
+    <string name="text_pyrowave_decode_warning">Este aparelho não decodifica PyroWave em %1$dx%2$d a %3$d FPS a tempo, então quadros serão descartados. Até %4$dx%5$d acompanha.</string>
+    <string name="text_pyrowave_decode_warning_none">Este aparelho não decodifica PyroWave em %1$dx%2$d a %3$d FPS a tempo, então quadros serão descartados. Tente uma taxa de quadros menor.</string>
     <string name="summary_enable_pyrowave">Codec de baixa latência para conexões cabeadas ou Wi-Fi forte. Exige muita banda (cerca de 200 Mbps ou mais) e um host Helios com suporte a PyroWave. Volta aos codecs normais quando indisponível.</string>
     <string name="summary_pyrowave_unsupported">Este dispositivo não suporta PyroWave: %1$s.</string>
     <string name="title_enable_hdr">Habilitar HDR (Experimental)</string>

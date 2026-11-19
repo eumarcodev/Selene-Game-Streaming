@@ -14,6 +14,8 @@
 #include <string.h>
 #include <time.h>
 #include <sys/system_properties.h>
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <vector>
@@ -130,7 +132,13 @@ struct Player
 	// read by the overlay timer.
 	std::mutex stats_lock;
 	StageTotals stages;
+
+	// Local decode benchmark: time between two finished frames while the GPU is kept busy.
+	std::vector<float> bench_ms;
 };
+
+// Set from Java to stop a running benchmark between two frames.
+std::atomic<bool> g_bench_cancel { false };
 
 int64_t now_ns()
 {
@@ -1002,6 +1010,173 @@ int self_test_frame(Player &p, int frame, int loss_percent)
 	}
 	return decode_and_present(p);
 }
+// Picture for the decode benchmark. It has to cost the decoder what desktop content costs, so it follows the
+// animated page used for the stream measurements (eumarcodev/Helios-Server#62): a gradient, coloured blocks,
+// twelve lines of text-like stripes and a 256x256 noise square (scaled with the height), all derived from the
+// frame index (no randomness), so every run and every device decodes the same pictures.
+void benchmark_pattern(int w, int h, int cw, int ch, bool c444, int frame,
+                       std::vector<uint8_t> &y, std::vector<uint8_t> &cb, std::vector<uint8_t> &cr)
+{
+	uint32_t noise = 2463534242u + uint32_t(frame) * 2654435761u;
+	const int block = h / 9 > 8 ? h / 9 : 8;               // blocks of about 120 px at 1080p
+	const int line_h = h / 36 > 4 ? h / 36 : 4;             // text lines like the page (h / 36 apart)
+	const int glyph = line_h / 3 > 1 ? line_h / 3 : 1;
+	const int text_top = h * 55 / 100;
+	const int noise_size = h * 256 / 1080;                  // 256x256 at 1080p
+	const int noise_x = (frame * 5) % (w - noise_size), noise_y = h - noise_size - h / 30;
+	for (int j = 0; j < h; j++)
+		for (int i = 0; i < w; i++)
+		{
+			int v = 16 + ((i + j + frame * 7) * 200) / (w + h);
+			int bx = (i + frame * 13) / block, by = (j + frame * 5) / block;
+			if (((bx * 7 + by * 3) % 9) == 0)
+				v = 40 + ((bx * 37 + by * 53) % 180);
+			const int line = j - text_top;
+			if (line >= 0 && line < 12 * line_h && (line % line_h) < line_h * 2 / 3 && i > w / 100 && i < w * 2 / 5 &&
+			    ((i / glyph + line / line_h + frame) % 7) < 5)
+				v = 235;
+			if (i >= noise_x && i < noise_x + noise_size && j >= noise_y && j < noise_y + noise_size)
+			{
+				noise ^= noise << 13;
+				noise ^= noise >> 17;
+				noise ^= noise << 5;
+				v = 16 + int(noise % 220);
+			}
+			y[size_t(j) * w + i] = uint8_t(v);
+		}
+	for (int j = 0; j < ch; j++)
+		for (int i = 0; i < cw; i++)
+		{
+			// Smooth colour gradient like the page background; flat colours only inside the coloured blocks
+			int li = c444 ? i : i * 2, lj = c444 ? j : j * 2;
+			int bx = (li + frame * 13) / block, by = (lj + frame * 5) / block;
+			int u = 96 + (li * 64) / w, v = 160 - (lj * 64) / h;
+			if (((bx * 7 + by * 3) % 9) == 0)
+			{
+				u = 64 + ((bx * 29 + by * 11) % 128);
+				v = 64 + ((bx * 17 + by * 41) % 128);
+			}
+			cb[size_t(j) * cw + i] = uint8_t(u);
+			cr[size_t(j) * cw + i] = uint8_t(v);
+		}
+}
+
+// Encodes a few benchmark pictures at frame_bytes each, then decodes and presents them back to back through the
+// normal path (two frames in flight, like a stream the GPU cannot keep up with). The time between two finished
+// frames is what one frame really costs: GPU timestamps are not used because on Mali they cover only part of the
+// work when frames overlap (in a 2560x1600 stream they add up to about 12 ms while only 34 frames per second get
+// through). out: median time per frame in ms, average encoded frame size in bytes, frames measured. Returns 0,
+// -20 when cancelled, other negatives on errors.
+int run_benchmark(Player &p, int frame_bytes, int warmup, int frames, float out[3])
+{
+	if (!p.test_encoder)
+	{
+		pyrowave_encoder_create_info eci = {};
+		eci.device = p.device;
+		eci.width = p.width;
+		eci.height = p.height;
+		eci.chroma = p.chroma444 ? PYROWAVE_CHROMA_SUBSAMPLING_444 : PYROWAVE_CHROMA_SUBSAMPLING_420;
+		if (pyrowave_encoder_create(&eci, &p.test_encoder) != PYROWAVE_SUCCESS)
+			return -10;
+	}
+
+	const int w = p.width, h = p.height;
+	const int cw = p.chroma444 ? w : w / 2, ch = p.chroma444 ? h : h / 2;
+	std::vector<uint8_t> y(size_t(w) * h), cb(size_t(cw) * ch), cr(size_t(cw) * ch);
+	const int kPictures = 2;
+	// Packets like a stream's: Helios sends PyroWave in packets of up to 1200 bytes by default (pyrowave_packet_size).
+	const size_t boundary = 1200;
+	std::vector<std::vector<uint8_t>> streams(kPictures);
+	std::vector<std::vector<pyrowave_packet>> packets(kPictures);
+	double total_bytes = 0;
+	for (int k = 0; k < kPictures; k++)
+	{
+		if (g_bench_cancel.load())
+			return -20;
+		benchmark_pattern(w, h, cw, ch, p.chroma444, k * 9, y, cb, cr);
+		pyrowave_cpu_buffer buf = {};
+		buf.data[0] = y.data(); buf.data[1] = cb.data(); buf.data[2] = cr.data();
+		buf.row_stride_in_bytes[0] = size_t(w); buf.row_stride_in_bytes[1] = buf.row_stride_in_bytes[2] = size_t(cw);
+		buf.plane_size_in_bytes[0] = y.size(); buf.plane_size_in_bytes[1] = buf.plane_size_in_bytes[2] = cb.size();
+		buf.width = w; buf.height = h;
+		buf.format = p.chroma444 ? PYROWAVE_CPU_BUFFER_FORMAT_YUV444P : PYROWAVE_CPU_BUFFER_FORMAT_YUV420P;
+		pyrowave_rate_control rc = { size_t(frame_bytes) };
+		if (pyrowave_encoder_encode_cpu(p.test_encoder, &buf, &rc) != PYROWAVE_SUCCESS)
+			return -11;
+		size_t num = 0;
+		if (pyrowave_encoder_compute_num_packets(p.test_encoder, boundary, &num) != PYROWAVE_SUCCESS)
+			return -12;
+		packets[k].resize(num);
+		streams[k].resize(size_t(frame_bytes) * 2 + 65536);
+		size_t count = 0;
+		if (pyrowave_encoder_packetize(p.test_encoder, packets[k].data(), boundary, &count, streams[k].data(),
+		                               streams[k].size()) != PYROWAVE_SUCCESS)
+			return -13;
+		packets[k].resize(count);
+		for (const pyrowave_packet &pk : packets[k])
+			total_bytes += double(pk.size);
+	}
+
+	// The encoder is not needed any more and shares the PyroWave device with the decoder: free it first.
+	pyrowave_encoder_destroy(p.test_encoder);
+	p.test_encoder = nullptr;
+
+	// The GPU clock drops while the pictures are encoded on the CPU, so the warm-up lasts at least one second of
+	// decoding (and at least warmup frames) before anything is counted: the governor needs that long to settle.
+	const int64_t kMinWarmupNs = 1000000000;
+	p.bench_ms.clear();
+	int result = 0;
+	const int64_t warm_start = now_ns();
+	int64_t last_done = 0;
+	bool measuring = false;
+	for (int i = 0; !measuring || int(p.bench_ms.size()) < frames; i++)
+	{
+		if (g_bench_cancel.load())
+		{
+			result = -20;
+			break;
+		}
+		const int k = i % kPictures;
+		pyrowave_decoder_clear(p.decoder);
+		for (const pyrowave_packet &pk : packets[k])
+			if (pyrowave_decoder_push_packet(p.decoder, streams[k].data() + pk.offset, pk.size) != PYROWAVE_SUCCESS)
+			{
+				result = -14;
+				break;
+			}
+		if (result != 0)
+			break;
+		int r = decode_and_present(p);
+		if (r < 0)
+		{
+			result = r;
+			break;
+		}
+		// With two slots, decode_and_present waits for the frame submitted two calls earlier, so in steady state
+		// the time between two returns is the cost of one frame.
+		const int64_t done = now_ns();
+		if (measuring)
+			p.bench_ms.push_back(float(double(done - last_done) * 1e-6));
+		else if (i >= warmup && done - warm_start >= kMinWarmupNs)
+			measuring = true;
+		last_done = done;
+	}
+	vkDeviceWaitIdle(p.vk);
+	if (result != 0)
+		return result;
+
+	std::vector<float> ms(p.bench_ms.begin(), p.bench_ms.begin() + std::min<size_t>(p.bench_ms.size(), size_t(frames)));
+	if (ms.empty())
+		return -22;
+	std::nth_element(ms.begin(), ms.begin() + ms.size() / 2, ms.end());
+	out[0] = ms[ms.size() / 2];
+	out[1] = float(total_bytes / kPictures);
+	out[2] = float(ms.size());
+	LOGI("Decode benchmark %dx%d: median %.2f ms per frame (decode + present) over %zu frames, %.0f bytes per frame",
+	     w, h, double(out[0]), ms.size(), double(out[1]));
+	return 0;
+}
+
 } // namespace
 
 extern "C"
@@ -1114,4 +1289,26 @@ Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeSetFrameRate(JNIEnv *, 
 	p->pace_slot_ns = 0;
 	apply_frame_rate(*p);
 	LOGI("Frame pacing %s", p->paced ? "on" : "off");
+}
+
+// Local decode benchmark (eumarcodev/Helios-Server#127). out receives: median GPU decode plus presentation in ms,
+// average encoded frame size in bytes, frames measured. Returns 0, -20 when cancelled, other negatives on errors.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeBenchmark(JNIEnv *env, jclass, jlong handle, jint frameBytes,
+                                                                    jint warmup, jint frames, jfloatArray out)
+{
+	auto *p = reinterpret_cast<Player *>(handle);
+	if (!p || !out || env->GetArrayLength(out) < 3 || frameBytes <= 0 || frames <= 0 || warmup < 0)
+		return -1;
+	float values[3] = {};
+	int r = run_benchmark(*p, frameBytes, warmup, frames, values);
+	if (r == 0)
+		env->SetFloatArrayRegion(out, 0, 3, values);
+	return r;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeBenchmarkCancel(JNIEnv *, jclass, jboolean cancel)
+{
+	g_bench_cancel.store(cancel == JNI_TRUE);
 }
