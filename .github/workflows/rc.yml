@@ -1,27 +1,23 @@
 name: Release candidate
+run-name: Release candidate v${{ inputs.version }}
 
-# Every merge (push) to develop builds a release candidate and publishes it as a pre-release.
-# The version comes from the version.txt file at the repository root:
-#   version.txt 1.10.0 -> v1.10.0-rc.1, v1.10.0-rc.2, ...
-# Changes that cannot affect the binaries (docs, GitHub config other than the build) do not build an RC.
+# Builds and publishes one release candidate. It is started by "Queue release candidate" (rc-queue.yml) on every
+# merge to develop, which works out the version, so each run is titled with the RC it makes.
 # Each RC is built twice in parallel from the same commit: vX.Y.Z-rc.N (published as a pre-release) and vX.Y.Z (kept
 # as an artifact of this run). A tested RC becomes stable with promote.yml, which publishes that artifact as is.
 # When the repository variable PLAY_PUBLISHING is "true", each RC is also uploaded to a Google Play testing track
 # (PLAY_RC_TRACK, default "alpha" = closed testing). See .github/RELEASING.md, section "Google Play".
 on:
-  push:
-    branches:
-      - develop
-    # Later patterns win: everything, minus docs, .github and version.txt, plus the build workflow itself.
-    # A version.txt change alone has nothing new to test; the code that comes with it triggers the RC.
-    paths:
-      - "**"
-      - "!**.md"
-      - "!docs/**"
-      - "!.github/**"
-      - "!version.txt"
-      - ".github/workflows/build.yml"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "RC version without the leading v (e.g. 1.10.0-rc.2). Normally set by Queue release candidate."
+        type: string
+        required: true
+      sha:
+        description: Commit of develop to build
+        type: string
+        required: true
 
 # A newer merge supersedes the RC that is still building
 concurrency:
@@ -36,61 +32,44 @@ jobs:
     name: Plan
     runs-on: ubuntu-latest
     outputs:
-      build: ${{ steps.plan.outputs.build }}
       sha: ${{ steps.plan.outputs.sha }}
       base: ${{ steps.plan.outputs.base }}
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
     steps:
-      - name: Checkout (full history and tags)
+      - name: Checkout develop (full history and tags)
         uses: actions/checkout@v7
         with:
+          ref: develop
           fetch-depth: 0
 
       - name: Plan
         id: plan
+        env:
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ inputs.sha }}
         run: |
           set -euo pipefail
           fail() { echo "::error::$1"; exit 1; }
 
-          sha=$(git rev-parse HEAD)
-          base=$(tr -d ' \r\n' < version.txt)
-          [[ "${base}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version.txt must look like X.Y.Z, got '${base}'"
-          git rev-parse -q --verify "refs/tags/v${base}" > /dev/null &&
-            fail "v${base} is already released. Bump version.txt on develop (promote.yml does it after each release)."
-          latest=$( (git tag -l 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true) | sed 's/^v//' | sort -V | tail -1)
-          if [[ -n "${latest}" && "$(printf '%s\n%s\n' "${latest}" "${base}" | sort -V | tail -1)" != "${base}" ]]; then
-            fail "version.txt ${base} is lower than the latest stable release v${latest}"
-          fi
-
-          build=true
-          reason="new release candidate"
-          last=$( (git tag -l "v${base}-rc.*" || true) | sed -E 's/.*-rc\.//' | sort -n | tail -1)
-          n=$((${last:-0} + 1))
-
-          if [[ -n "${last}" && "$(git rev-list -n1 "v${base}-rc.${last}")" == "${sha}" ]]; then
-            build=false
-            reason="v${base}-rc.${last} already points at this commit"
-          elif git rev-parse -q --verify origin/master > /dev/null && git merge-base --is-ancestor "${sha}" origin/master; then
-            build=false
-            reason="this commit is already released on master"
-          fi
-
-          version="${base}-rc.${n}"
+          [[ "${VERSION}" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-rc\.[0-9]+$ ]] || fail "version must look like X.Y.Z-rc.N, got '${VERSION}'"
+          base="${BASH_REMATCH[1]}"
+          sha=$(git rev-parse --verify "${SHA}^{commit}") || fail "Commit ${SHA} not found"
+          git merge-base --is-ancestor "${sha}" origin/develop || fail "${sha} is not on develop"
+          git rev-parse -q --verify "refs/tags/v${VERSION}" > /dev/null && fail "v${VERSION} already exists"
+          git rev-parse -q --verify "refs/tags/v${base}" > /dev/null && fail "v${base} is already released"
           {
-            echo "build=${build}"
             echo "sha=${sha}"
             echo "base=${base}"
-            echo "version=${version}"
-            echo "tag=v${version}"
+            echo "version=${VERSION}"
+            echo "tag=v${VERSION}"
           } >> "$GITHUB_OUTPUT"
-          echo "RC v${version} at ${sha}: build=${build} (${reason})" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=Release candidate::v${version} (stable v${base} built next to it, build=${build})"
+          echo "::notice title=Release candidate::v${VERSION} at ${sha:0:8} (stable v${base} built next to it)"
+          echo "Release candidate **v${VERSION}** at ${sha} (stable v${base} built next to it)" >> "$GITHUB_STEP_SUMMARY"
 
   build:
     name: Build v${{ needs.prepare.outputs.version }}
     needs: prepare
-    if: needs.prepare.outputs.build == 'true'
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
@@ -104,7 +83,6 @@ jobs:
   build-stable:
     name: Build v${{ needs.prepare.outputs.base }} (stable, kept for promote)
     needs: prepare
-    if: needs.prepare.outputs.build == 'true'
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
