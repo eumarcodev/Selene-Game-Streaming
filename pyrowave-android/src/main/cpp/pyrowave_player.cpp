@@ -133,6 +133,18 @@ struct Player
 	std::mutex stats_lock;
 	StageTotals stages;
 
+	// Presentation regularity from VK_GOOGLE_display_timing (when the driver exposes it): how many refresh
+	// periods each frame stayed on screen, from the actual present times the display reports.
+	bool display_timing = false;
+	PFN_vkGetRefreshCycleDurationGOOGLE get_refresh_cycle = nullptr;
+	PFN_vkGetPastPresentationTimingGOOGLE get_past_timing = nullptr;
+	uint64_t refresh_ns = 0;
+	uint32_t next_present_id = 1;
+	uint32_t last_timed_id = 0;
+	uint64_t last_actual_ns = 0;
+	int64_t last_timing_read_ns = 0;
+	uint32_t shown[3] = {}; // frames shown 1, 2, and 3 or more refresh periods since the last read (stats_lock)
+
 	// Local decode benchmark: time between two finished frames while the GPU is kept busy.
 	std::vector<float> bench_ms;
 };
@@ -488,9 +500,15 @@ Player *create_player(JNIEnv *env, jobject surface, int width, int height, bool 
 	}
 
 	const char *instance_ext[] = { "VK_KHR_surface", "VK_KHR_android_surface" };
-	const char *device_ext[] = { "VK_KHR_swapchain" };
+	// VK_GOOGLE_display_timing reports when each frame really reached the display. PyroWave requires every listed
+	// extension, so try with it first and fall back without it.
+	const char *device_ext[] = { "VK_KHR_swapchain", "VK_GOOGLE_display_timing" };
 	pyrowave_result res = pyrowave_create_device_with_extensions(VK_QUEUE_GLOBAL_PRIORITY_MEDIUM,
-	                                                             instance_ext, 2, device_ext, 1, &p->device);
+	                                                             instance_ext, 2, device_ext, 2, &p->device);
+	p->display_timing = res == PYROWAVE_SUCCESS;
+	if (res != PYROWAVE_SUCCESS)
+		res = pyrowave_create_device_with_extensions(VK_QUEUE_GLOBAL_PRIORITY_MEDIUM, instance_ext, 2, device_ext, 1,
+		                                             &p->device);
 	if (res != PYROWAVE_SUCCESS)
 	{
 		LOGE("pyrowave_create_device_with_extensions failed: %d", int(res));
@@ -499,6 +517,15 @@ Player *create_player(JNIEnv *env, jobject surface, int width, int height, bool 
 		return nullptr;
 	}
 	pyrowave_device_get_vk_device_handles(p->device, &p->instance, &p->gpu, &p->vk);
+	if (p->display_timing)
+	{
+		p->get_refresh_cycle = reinterpret_cast<PFN_vkGetRefreshCycleDurationGOOGLE>(
+			vkGetDeviceProcAddr(p->vk, "vkGetRefreshCycleDurationGOOGLE"));
+		p->get_past_timing = reinterpret_cast<PFN_vkGetPastPresentationTimingGOOGLE>(
+			vkGetDeviceProcAddr(p->vk, "vkGetPastPresentationTimingGOOGLE"));
+		p->display_timing = p->get_refresh_cycle && p->get_past_timing;
+	}
+	LOGI("VK_GOOGLE_display_timing %s", p->display_timing ? "on" : "not available: presentation regularity unknown");
 	p->fragment_path = pyrowave_decoder_device_prefers_fragment_path(p->device);
 	// PyroWave prefers the fragment path on Mali. On the Mali-G57 MC2 (Redmi Pad 2) the compute path
 	// needed 6 to 14% less GPU time than the fragment path and less CPU time per frame, so
@@ -746,6 +773,50 @@ int64_t wait_for_slot(Player &p)
 }
 
 // Returns 0 when presented, 1 when the frame was dropped, negative on errors.
+// Counts how many refresh periods each frame stayed on screen, from the actual present times of the frames
+// presented since the last read. A frame replaced before it reached the display is not reported, so its time
+// counts for the frame shown before it, as dumpsys SurfaceFlinger --latency would show it.
+void read_present_timing(Player &p)
+{
+	if (p.refresh_ns == 0)
+	{
+		VkRefreshCycleDurationGOOGLE cycle = {};
+		if (p.get_refresh_cycle(p.vk, p.swapchain, &cycle) != VK_SUCCESS || cycle.refreshDuration == 0)
+			return;
+		p.refresh_ns = cycle.refreshDuration;
+	}
+	uint32_t count = 0;
+	if (p.get_past_timing(p.vk, p.swapchain, &count, nullptr) != VK_SUCCESS || count == 0)
+		return;
+	std::vector<VkPastPresentationTimingGOOGLE> timings(count);
+	if (p.get_past_timing(p.vk, p.swapchain, &count, timings.data()) < 0)
+		return;
+	timings.resize(count);
+	std::sort(timings.begin(), timings.end(),
+	          [](const VkPastPresentationTimingGOOGLE &a, const VkPastPresentationTimingGOOGLE &b) {
+		          return a.presentID < b.presentID;
+	          });
+	uint32_t local[3] = {};
+	for (const auto &t : timings)
+	{
+		if (t.presentID <= p.last_timed_id || t.actualPresentTime == 0)
+			continue;
+		if (p.last_actual_ns != 0 && t.actualPresentTime > p.last_actual_ns)
+		{
+			const double periods = double(t.actualPresentTime - p.last_actual_ns) / double(p.refresh_ns);
+			const int n = int(periods + 0.5);
+			// A gap of many periods is a pause (stream stalled), not a frame held on screen
+			if (n >= 1 && n <= 8)
+				local[n >= 3 ? 2 : n - 1]++;
+		}
+		p.last_actual_ns = t.actualPresentTime;
+		p.last_timed_id = t.presentID;
+	}
+	std::lock_guard<std::mutex> holder(p.stats_lock);
+	for (int i = 0; i < 3; i++)
+		p.shown[i] += local[i];
+}
+
 int decode_and_present(Player &p, int64_t parse_ns = 0)
 {
 	// A frame that lost packets is still decoded: the missing blocks just come out blurry. The lowest
@@ -912,11 +983,26 @@ int decode_and_present(Player &p, int64_t parse_ns = 0)
 	pi.swapchainCount = 1;
 	pi.pSwapchains = &p.swapchain;
 	pi.pImageIndices = &image_index;
+	// Tag the frame so its actual present time can be read back (no desired time: presentation is unchanged)
+	VkPresentTimeGOOGLE present_time = { p.next_present_id++, 0 };
+	VkPresentTimesInfoGOOGLE present_times = { VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE };
+	if (p.display_timing)
+	{
+		present_times.swapchainCount = 1;
+		present_times.pTimes = &present_time;
+		pi.pNext = &present_times;
+	}
 	r = vkQueuePresentKHR(p.queue, &pi);
 	if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR && r != VK_ERROR_OUT_OF_DATE_KHR)
 		return -6;
 	const int64_t t_present = now_ns();
 	p.frames_presented++;
+	if (p.display_timing && t_present - p.last_timing_read_ns > 250000000)
+	{
+		// The swapchain is used on this thread only, so its past timings are read here, a few times a second
+		p.last_timing_read_ns = t_present;
+		read_present_timing(p);
+	}
 
 	{
 		std::lock_guard<std::mutex> holder(p.stats_lock);
@@ -1311,4 +1397,28 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativeBenchmarkCancel(JNIEnv *, jclass, jboolean cancel)
 {
 	g_bench_cancel.store(cancel == JNI_TRUE);
+}
+
+// Presentation regularity (eumarcodev/Helios-Server#129): writes the number of frames shown 1, 2, and 3 or more
+// refresh periods since the last call into out. Returns the total, or -1 when the device cannot report it
+// (no VK_GOOGLE_display_timing).
+extern "C" JNIEXPORT jint JNICALL
+Java_com_eumarcodev_selene_pyrowave_PyroWaveNative_nativePresentStats(JNIEnv *env, jclass, jlong handle, jintArray out)
+{
+	auto *p = reinterpret_cast<Player *>(handle);
+	if (!p || !out || env->GetArrayLength(out) < 3)
+		return -1;
+	if (!p->display_timing)
+		return -1;
+	jint values[3];
+	{
+		std::lock_guard<std::mutex> holder(p->stats_lock);
+		for (int i = 0; i < 3; i++)
+		{
+			values[i] = jint(p->shown[i]);
+			p->shown[i] = 0;
+		}
+	}
+	env->SetIntArrayRegion(out, 0, 3, values);
+	return values[0] + values[1] + values[2];
 }

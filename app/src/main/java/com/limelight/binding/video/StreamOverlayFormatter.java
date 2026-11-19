@@ -43,6 +43,8 @@ public class StreamOverlayFormatter {
         public int arrivalMaxGapMs;        // longest time between two frames in the window
         // Average time per stage in ms, see PyroWaveNative.nativeStageStats. Null when nothing was decoded
         public float[] stageMs;
+        /** Share of frames shown 1, 2, and 3 or more refresh periods (VK_GOOGLE_display_timing); null when unknown. */
+        public float[] shownPercent;
     }
 
     private final Context context;
@@ -127,6 +129,13 @@ public class StreamOverlayFormatter {
         }
         if (v.arrivalJitterMs >= 0) {
             sb.append(context.getString(R.string.pw_overlay_arrival, v.arrivalJitterMs, v.arrivalMaxGapMs)).append('\n');
+        }
+        if (v.stageMs != null) {
+            if (v.shownPercent != null) {
+                sb.append(context.getString(R.string.pw_overlay_shown, v.shownPercent[0], v.shownPercent[1], v.shownPercent[2])).append('\n');
+            } else {
+                sb.append(context.getString(R.string.pw_overlay_shown_unknown)).append('\n');
+            }
         }
         append(sb, context.getString(R.string.pw_overlay_speed, mbps), bandwidthColor);
         sb.append("   ").append(context.getString(R.string.pw_overlay_frame_size, v.avgFrameKb, v.maxFrameKb)).append('\n');
