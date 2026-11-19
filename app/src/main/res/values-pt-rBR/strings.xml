@@ -53,6 +53,9 @@
     <string name="videoformat_auto">Automático (recomendado)</string>
     <string name="fps_120">120 FPS</string>
     <string name="fps_half_display">Metade da tela (%1$d FPS)</string>
+    <string name="even_fps_suggestion">A tela fica em %1$d Hz, então %2$d FPS aparece irregular.</string>
+    <string name="even_fps_use">Usar %1$d FPS</string>
+    <string name="even_fps_saved">Taxa de quadros definida em %1$d FPS. Vale a partir da próxima sessão.</string>
     <string name="audioconf_stereo">Stereo</string>
     <string name="audioconf_51surround">5.1 Surround</string>
     <string name="audioconf_71surround">7.1 Surround</string>
