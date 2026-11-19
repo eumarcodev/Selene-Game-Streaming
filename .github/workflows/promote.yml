@@ -1,12 +1,14 @@
 name: Promote to stable
 run-name: Stable release v${{ inputs.version }}
 
-# Manual (Actions > Promote to stable > Run workflow): turns a tested release candidate into the stable release.
-# Type the version to release (X.Y.Z); its latest RC is promoted unless a specific RC number is given.
+# Turns a tested release candidate into the stable release. Normally started by "Queue stable release"
+# (stable-queue.yml) when develop is merged into master; it can also be run by hand (Actions > Promote to stable >
+# Run workflow): type the version to release (X.Y.Z); its latest RC is promoted unless a specific RC number is given.
 #   1. takes the stable build (vX.Y.Z) that the RC's run made in parallel with the RC (rc.yml, artifact
 #      selene-android-stable); only when that artifact is gone (expired after 90 days, or the job failed) it builds
 #      the RC's commit again with the stable version (the version is baked into the binaries)
-#   2. fast-forwards master to that commit and publishes vX.Y.Z as the latest release
+#   2. publishes vX.Y.Z as the latest release: at the merge commit on master when started by a merge (master must
+#      build the same as the RC), or, when run by hand, after fast-forwarding master to the RC's commit
 #   3. bumps version.txt on develop to the next minor version, so the next merge starts the next RC series
 # When the repository variable PLAY_PUBLISHING is "true", the release is also uploaded to the Google Play production
 # track (see .github/RELEASING.md, section "Google Play").
@@ -19,6 +21,11 @@ on:
         required: true
       rc:
         description: "RC number to promote (e.g. 2 for v1.10.0-rc.2). Empty: the latest RC of that version."
+        type: string
+        required: false
+        default: ""
+      master:
+        description: "Commit already on master to release (set by Queue stable release). Empty: fast-forward master to the RC."
         type: string
         required: false
         default: ""
@@ -39,6 +46,8 @@ jobs:
       actions: read
     outputs:
       sha: ${{ steps.plan.outputs.sha }}
+      rc-sha: ${{ steps.plan.outputs.rc-sha }}
+      move-master: ${{ steps.plan.outputs.move-master }}
       version: ${{ steps.plan.outputs.version }}
       previous: ${{ steps.plan.outputs.previous }}
       rc-run: ${{ steps.reuse.outputs.run }}
@@ -54,6 +63,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
           RC: ${{ inputs.rc }}
+          MASTER: ${{ inputs.master }}
         run: |
           set -euo pipefail
           fail() { echo "::error::$1"; exit 1; }
@@ -73,13 +83,29 @@ jobs:
           git rev-parse -q --verify "refs/tags/${rc}" > /dev/null || fail "Tag ${rc} does not exist"
           git rev-parse -q --verify "refs/tags/v${version}" > /dev/null && fail "v${version} is already released"
 
-          sha=$(git rev-list -n1 "${rc}")
-          git merge-base --is-ancestor origin/master "${sha}" ||
-            fail "master has commits that are not in ${rc}, so it cannot be fast-forwarded. Merge master into develop first."
+          rc_sha=$(git rev-list -n1 "${rc}")
+          if [[ -n "${MASTER// /}" ]]; then
+            # Started by a merge into master: release that commit, as long as it builds the same as the RC (only
+            # Markdown, docs/, .github/ other than build.yml and version.txt may differ), so the RC's stable build fits
+            sha=$(git rev-parse --verify "${MASTER// /}^{commit}") || fail "Commit ${MASTER} not found"
+            git merge-base --is-ancestor "${sha}" origin/master || fail "${sha} is not on master"
+            changed=$( (git diff --name-only "${rc_sha}" "${sha}" -- . ':(exclude)*.md' ':(exclude)docs' ':(exclude).github' ':(exclude)version.txt'
+                        git diff --name-only "${rc_sha}" "${sha}" -- .github/workflows/build.yml) | sort -u)
+            [[ -z "${changed}" ]] ||
+              fail "master (${sha:0:8}) builds differently from ${rc}: $(echo ${changed}). Merge into master only after the RC of develop's last change is published."
+            move_master=false
+          else
+            sha="${rc_sha}"
+            git merge-base --is-ancestor origin/master "${sha}" ||
+              fail "master has commits that are not in ${rc}, so it cannot be fast-forwarded. Merge develop into master instead (that releases it)."
+            move_master=true
+          fi
 
           previous=$( (git tag -l 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true) | sort -V | tail -1)
           {
             echo "sha=${sha}"
+            echo "rc-sha=${rc_sha}"
+            echo "move-master=${move_master}"
             echo "version=${version}"
             echo "previous=${previous}"
             echo "rc=${rc}"
@@ -94,7 +120,7 @@ jobs:
         id: reuse
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ steps.plan.outputs.sha }}
+          SHA: ${{ steps.plan.outputs.rc-sha }}
           RC: ${{ steps.plan.outputs.rc }}
           NEED: ${{ vars.PLAY_PUBLISHING == 'true' && 2 || 1 }}
         run: |
@@ -152,8 +178,10 @@ jobs:
           ref: ${{ needs.prepare.outputs.sha }}
           fetch-depth: 0
 
-      # A plain push only fast-forwards; it is rejected if master has diverged
+      # A plain push only fast-forwards; it is rejected if master has diverged. Skipped when started by a merge
+      # into master, which is already there.
       - name: Move master to the release
+        if: needs.prepare.outputs.move-master == 'true'
         run: git push origin "${SHA}:refs/heads/master"
 
       - name: Download artifacts
