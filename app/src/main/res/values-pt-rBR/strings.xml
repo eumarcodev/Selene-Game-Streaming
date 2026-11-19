@@ -232,7 +232,7 @@
     <string name="title_pyrowave_max_frame">Tamanho máximo do quadro</string>
     <string name="title_pyrowave_bitrate">Bitrate do PyroWave</string>
     <string name="summary_pyrowave_bitrate">Bitrate de vídeo usado quando o stream é PyroWave. O PyroWave codifica cada quadro sozinho, então precisa de cerca de 2,5 vezes o bitrate do HEVC para a mesma imagem. Diminua se a imagem travar ou o overlay mostrar perda na sua rede.</string>
-    <string name="pyrowave_bitrate_auto">Automático (2,5 vezes o bitrate de vídeo, até 150 Mbit/s)</string>
+    <string name="pyrowave_bitrate_auto">Automático (2,5 vezes o bitrate de vídeo, até 150 Mbit/s, limitado pela velocidade do Wi-Fi)</string>
     <string name="pyrowave_bitrate_same">Igual ao bitrate de vídeo</string>
     <string name="title_pyrowave_static_boost">Tela parada mais nítida</string>
     <string name="summary_pyrowave_static_boost">Enquanto a tela não muda, o host envia só alguns quadros por segundo; eles recebem 4 vezes o tamanho normal, então a imagem parada fica nítida sem passar do bitrate. Exige um host Helios.</string>

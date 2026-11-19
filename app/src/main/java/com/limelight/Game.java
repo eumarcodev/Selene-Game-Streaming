@@ -79,6 +79,9 @@ import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -746,14 +749,17 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
         MoonBridge.setPyroWavePrefs(prefConfig.pyroWavePacketSize, prefConfig.pyroWaveMaxFrameKb);
         // PyroWave codes every frame on its own, so it needs more bitrate than HEVC for the same picture (Selene #61).
-        // Automatic: 2.5 times the video bitrate, up to 150 Mbit/s; never raised on a metered network.
+        // Automatic: 2.5 times the video bitrate, up to 150 Mbit/s, and no more than the Wi-Fi link can carry
+        // without a frame taking most of the frame period to arrive; never raised on a metered network.
         int videoBitrateKbps = isMetered ? prefConfig.meteredBitrate : prefConfig.bitrate;
         int pyroWaveBitrateKbps;
         if (prefConfig.pyroWaveBitrate > 0) {
             pyroWaveBitrateKbps = isMetered ? Math.min(prefConfig.pyroWaveBitrate, videoBitrateKbps) : prefConfig.pyroWaveBitrate;
         } else if (prefConfig.pyroWaveBitrate == 0 && !isMetered) {
-            pyroWaveBitrateKbps = Math.max(videoBitrateKbps, Math.min(PreferenceConfiguration.PYROWAVE_AUTO_MAX_KBPS,
-                    Math.round(videoBitrateKbps * PreferenceConfiguration.PYROWAVE_AUTO_FACTOR)));
+            int wifiLinkMbps = wifiDownlinkMbps(connMgr);
+            pyroWaveBitrateKbps = com.limelight.preferences.PyroWaveBitrate.autoKbps(videoBitrateKbps, wifiLinkMbps);
+            LimeLog.info("PyroWave automatic bitrate: " + pyroWaveBitrateKbps + " kbps (video " + videoBitrateKbps
+                    + " kbps, Wi-Fi link " + wifiLinkMbps + " Mbit/s)");
         } else {
             pyroWaveBitrateKbps = videoBitrateKbps;
         }
@@ -1493,6 +1499,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     public boolean isOnExternalDisplay() {
         return onExternelDisplay;
+    }
+
+    /**
+     * Link speed of the Wi-Fi connection towards this device in Mbit/s, or 0 when the active network is not Wi-Fi
+     * or the speed is unknown.
+     */
+    @SuppressWarnings("deprecation")
+    private int wifiDownlinkMbps(ConnectivityManager connMgr) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Network network = connMgr.getActiveNetwork();
+                NetworkCapabilities caps = network != null ? connMgr.getNetworkCapabilities(network) : null;
+                if (caps == null || !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                    return 0;
+                }
+            }
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            WifiInfo info = wm != null ? wm.getConnectionInfo() : null;
+            if (info == null) {
+                return 0;
+            }
+            int rx = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ? info.getRxLinkSpeedMbps() : -1;
+            return Math.max(0, rx > 0 ? rx : info.getLinkSpeed());
+        } catch (RuntimeException e) {
+            return 0;
+        }
     }
 
     private float prepareDisplayForRendering(Display currentDisplay) {
