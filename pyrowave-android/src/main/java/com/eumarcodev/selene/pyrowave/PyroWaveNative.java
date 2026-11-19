@@ -44,6 +44,14 @@ public final class PyroWaveNative {
     public static native int nativeStageStats(long handle, float[] out);
 
     /**
+     * Presentation regularity from VK_GOOGLE_display_timing: out (3 values) receives how many frames stayed on
+     * screen 1, 2, and 3 or more refresh periods since the last call.
+     *
+     * @return the number of frames counted, or -1 when the device cannot report it
+     */
+    public static native int nativePresentStats(long handle, int[] out);
+
+    /**
      * Local decode benchmark: encodes test pictures of frameBytes each and decodes and presents them back to back
      * through the normal path. out (3 values): median time per frame in ms (time between two finished frames),
      * average encoded frame size in bytes, frames measured.

@@ -63,6 +63,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     // Keeps the player alive while the stats timer reads it
     private final Object handleLock = new Object();
     private final float[] stageMs = new float[PyroWaveNative.STAGE_COUNT];
+    private final int[] shownCounts = new int[3];
     private ScheduledExecutorService statsTimer;
 
     /**
@@ -266,7 +267,13 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
                 if (handle != 0 && PyroWaveNative.nativeStageStats(handle, stageMs) > 0) {
                     info.stageMs = stageMs.clone();
                 }
+                if (handle != 0) {
+                    int counted = PyroWaveNative.nativePresentStats(handle, shownCounts);
+                    info.shownPercent = PresentRegularity.percentages(counted, shownCounts);
+                }
             }
+            // Next to the stage times the native player logs once a second
+            android.util.Log.i("SelenePyroWave", "presentation: " + PresentRegularity.describe(info.shownPercent));
             if (seen == 0) {
                 frameBytes.set(0);
             }
