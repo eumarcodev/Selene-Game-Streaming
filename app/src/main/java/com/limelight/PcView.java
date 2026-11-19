@@ -136,6 +136,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     private final static int GAMESTREAM_EOL_ID = 11;
     private final static int OPEN_MANAGEMENT_PAGE_ID = 20;
     private final static int PAIR_ID_OTP = 21;
+    private final static int AUTO_SETUP_ID = 22;
 
     private void initializeViews() {
         setContentView(R.layout.activity_pc_view);
@@ -454,6 +455,9 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
             menu.add(Menu.NONE, FULL_APP_LIST_ID, 4, getResources().getString(R.string.pcview_menu_app_list));
         }
 
+        if (computer.details.state == ComputerDetails.State.ONLINE && computer.details.pairState == PairState.PAIRED) {
+            menu.add(Menu.NONE, AUTO_SETUP_ID, 5, getResources().getString(R.string.auto_setup_title));
+        }
         menu.add(Menu.NONE, TEST_NETWORK_ID, 5, getResources().getString(R.string.pcview_menu_test_network));
         menu.add(Menu.NONE, DELETE_ID, 6, getResources().getString(R.string.pcview_menu_delete_pc));
         menu.add(Menu.NONE, VIEW_DETAILS_ID, 7,  getResources().getString(R.string.pcview_menu_details));
@@ -745,6 +749,13 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
             case UNPAIR_ID:
                 doUnpair(computer.details);
                 return true;
+
+            case AUTO_SETUP_ID: {
+                Intent setup = new Intent(this, AutoSetupActivity.class);
+                setup.putExtra(AutoSetupActivity.EXTRA_PC_UUID, computer.details.uuid);
+                startActivity(setup);
+                return true;
+            }
 
             case WOL_ID:
                 doWakeOnLan(computer.details);
