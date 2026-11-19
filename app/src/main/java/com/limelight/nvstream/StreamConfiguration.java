@@ -15,6 +15,7 @@ public class StreamConfiguration {
     private float refreshRate;
     private float launchRefreshRate;
     private boolean virtualDisplay;
+    private boolean testPattern;
     private int resolutionScaleFactor;
     private int clientRefreshRateX100;
     private int bitrate;
@@ -63,6 +64,15 @@ public class StreamConfiguration {
 
         public StreamConfiguration.Builder setVirtualDisplay(boolean enable) {
             config.virtualDisplay = enable;
+            return this;
+        }
+
+        /**
+         * Asks Helios for a test session (eumarcodev/Helios-Server#128): no application, no virtual display and a
+         * synthetic PyroWave picture instead of the screen. Other hosts ignore it.
+         */
+        public StreamConfiguration.Builder setTestPattern(boolean enable) {
+            config.testPattern = enable;
             return this;
         }
 
@@ -196,6 +206,8 @@ public class StreamConfiguration {
     }
 
     public boolean getVirtualDisplay() { return virtualDisplay; }
+
+    public boolean getTestPattern() { return testPattern; }
 
     public int getResolutionScaleFactor() { return resolutionScaleFactor; }
     
