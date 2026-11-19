@@ -29,7 +29,9 @@ feature/* --PR (no CI build)--> develop --merge--> RC vX.Y.Z-rc.N   (rc.yml, aut
 
 ### Release candidate
 
-Merge a pull request into `develop`. `rc.yml` builds and publishes the next `vX.Y.Z-rc.N`. A newer merge cancels an
+Merge a pull request into `develop`. `rc.yml` builds and publishes the next `vX.Y.Z-rc.N`. In parallel it builds the
+same commit as the stable `vX.Y.Z` and keeps it as an artifact of the run (`selene-android-stable`, plus
+`selene-android-stable-play` with Play publishing on; 90 days), for the promotion. A newer merge cancels an
 RC that is still building. Merges that only change Markdown, `docs/`, `.github/` (except `build.yml`) or `version.txt` do not build an RC. To build one anyway:
 **Actions > Release candidate > Run workflow** on `develop`.
 
@@ -38,7 +40,9 @@ RC that is still building. Merges that only change Markdown, `docs/`, `.github/`
 **Actions > Promote to stable > Run workflow**. Leave the RC field empty to promote the latest RC of the current
 `version.txt`, or type a specific one (`v1.10.0-rc.2`). The workflow:
 
-1. builds that RC's commit with the stable version (the version is baked into the binaries, so this is a new build);
+1. takes the stable build that the RC's run made, without building again (about 1 minute). Only when that artifact is
+   gone (older than 90 days, or its job failed) it builds the RC's commit with the stable version, as the version is
+   baked into the APKs;
 2. fast-forwards `master` to that commit and publishes `vX.Y.Z` as the latest release, with notes since the previous
    stable release;
 3. bumps `version.txt` on `develop` to the next minor version (`1.10.0` -> `1.11.0`).
@@ -57,8 +61,7 @@ Add the signing secrets (see [Signing](#signing)). Google Play publishing is opt
 
 ## Pull requests
 
-`pr.yml` builds nothing by default: build and test locally before opening the PR. Add the `build` label to have an
-**unsigned** APK built on the PR (it is not published).
+Pull requests are not built in CI: build and test locally before opening the PR. The merge into `develop` builds the RC.
 
 ## APK files
 
@@ -90,7 +93,7 @@ than the latest stable release. The version is passed to Gradle as `-PversionNam
 properties get `0.0.0-dev` and code 1. Gradle needs JDK 17 to 21 (JDK 25 breaks the Android Gradle plugin).
 
 `versionCode` is the number of commits of the built revision times 10, plus 1 for a stable build. A stable release is
-built from the same commit as the RC it promotes, so the `+1` keeps its code above that RC, and any later RC has more
+built from the same commit as the RC it promotes (in the same run), so the `+1` keeps its code above that RC, and any later RC has more
 commits and a higher code again. Google Play rejects a `versionCode` it has already received, on any track, so
 re-running an RC or a promotion after its Play upload succeeded fails at the Play step; that is expected.
 
