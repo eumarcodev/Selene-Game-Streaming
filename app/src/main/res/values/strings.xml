@@ -374,6 +374,9 @@
     <string name="fps_90">90 FPS</string>
     <string name="fps_120">120 FPS</string>
     <string name="fps_half_display">Half of the display (%1$d FPS)</string>
+    <string name="even_fps_suggestion">The screen stays at %1$d Hz, so %2$d FPS is shown unevenly.</string>
+    <string name="even_fps_use">Use %1$d FPS</string>
+    <string name="even_fps_saved">Frame rate set to %1$d FPS. It applies from the next session.</string>
 
     <string name="audioconf_stereo">Stereo</string>
     <string name="audioconf_51surround">5.1 Surround Sound</string>

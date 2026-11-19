@@ -3800,6 +3800,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 hideSystemUi(1000);
 
+                // Read the applied refresh rate once the display mode has settled
+                timerHandler.postDelayed(Game.this::maybeSuggestEvenFrameRate, 1500);
+
                 if (prefConfig.preventPacketLoss) {
                     timerHandler.postDelayed(backgroundPing, 1000);
                 }
@@ -3822,6 +3825,51 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // This may be null if launched from the "Resume Session" PC context menu item
             shortcutHelper.reportGameLaunched(computer, app);
         }
+    }
+
+    /**
+     * Some panels keep their own refresh rate whatever the app requests (eumarcodev/Helios-Server#126). When the
+     * stream rate does not divide the applied rate, offer half of it once per host; the setting changes only when
+     * the user taps the action.
+     */
+    private void maybeSuggestEvenFrameRate() {
+        if (!connected || isFinishing() || onExternelDisplay) {
+            return;
+        }
+        // A profile that sets the frame rate would shadow the saved value, so do not offer something that has no effect
+        com.limelight.profiles.SettingsProfile activeProfile = ProfilesManager.getInstance().getActive();
+        if (activeProfile != null && activeProfile.getOptions() != null && activeProfile.getOptions().containsKey("list_fps")) {
+            return;
+        }
+
+        final SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
+        float appliedHz = getWindowManager().getDefaultDisplay().getRefreshRate();
+        int streamFps = Math.round(prefConfig.fps);
+        final int suggested = com.limelight.preferences.EvenFrameRate.suggest(streamFps, appliedHz,
+                "latency".equals(settings.getString("frame_pacing", "latency")));
+        LimeLog.info("Even frame rate check: stream " + streamFps + " fps, panel " + appliedHz + " Hz, suggestion " + suggested);
+        if (suggested == 0) {
+            return;
+        }
+
+        String host = getIntent().getStringExtra(EXTRA_PC_UUID);
+        final String hostKey = host != null ? host : "unknown";
+        final SharedPreferences shown = getSharedPreferences("EvenFrameRateSuggestion", MODE_PRIVATE);
+        String currentSetting = settings.getString("list_fps", "60");
+        if (!com.limelight.preferences.EvenFrameRate.shouldShow(shown.getString(hostKey, null), currentSetting)) {
+            return;
+        }
+        shown.edit().putString(hostKey, currentSetting).apply();
+
+        com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content),
+                        getString(R.string.even_fps_suggestion, Math.round(appliedHz), streamFps), 10000)
+                .setAction(getString(R.string.even_fps_use, suggested), v -> {
+                    String value = Integer.toString(suggested);
+                    settings.edit().putString("list_fps", value).apply();
+                    shown.edit().putString(hostKey, value).apply();
+                    Toast.makeText(Game.this, getString(R.string.even_fps_saved, suggested), Toast.LENGTH_LONG).show();
+                })
+                .show();
     }
 
     @Override
