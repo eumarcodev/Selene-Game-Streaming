@@ -129,6 +129,14 @@ public class AutoSetupTest {
     }
 
     @Test
+    public void hostBusyOnlyForAnotherSession() {
+        assertFalse(AutoSetup.hostBusy(0));
+        // A test session still closing on the host does not block the next one
+        assertFalse(AutoSetup.hostBusy(AutoSetup.TEST_PATTERN_APP_ID));
+        assertTrue(AutoSetup.hostBusy(881448767));
+    }
+
+    @Test
     public void decideKeepsTheSettingsWhenNothingPasses() {
         List<AutoSetup.Candidate> c = AutoSetup.candidates(TABLET, TABLET_HZ);
         AutoSetup.Measurement bad = measurement(100000, 5, 3.0, new int[]{5, 90, 5}, 90f);

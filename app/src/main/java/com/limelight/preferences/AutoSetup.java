@@ -164,6 +164,17 @@ public final class AutoSetup {
         return 100f * m.shownCounts[index] / total;
     }
 
+    /** Same value as proc::test_pattern_app_id in Helios: the placebo app a test session reports. */
+    public static final int TEST_PATTERN_APP_ID = 0x7E5700;
+
+    /**
+     * Whether the host is streaming a session of its own (to this or another device). Starting a test session
+     * then would quit that session, so the setup must not start.
+     */
+    public static boolean hostBusy(int runningGameId) {
+        return runningGameId != 0 && runningGameId != TEST_PATTERN_APP_ID;
+    }
+
     /** True when the applied refresh rate is a whole multiple of the frame rate (within 1 Hz). */
     static boolean divides(float appliedHz, int fps) {
         if (appliedHz <= 0 || fps <= 0) {

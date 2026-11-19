@@ -68,8 +68,7 @@ public class AutoSetupActivity extends Activity {
     public static final String EXTRA_PC_UUID = "UUID";
 
     static final int MEASURE_SECONDS = 15;
-    /** Same value as proc::test_pattern_app_id in Helios. */
-    static final int TEST_PATTERN_APP_ID = 0x7E5700;
+    static final int TEST_PATTERN_APP_ID = AutoSetup.TEST_PATTERN_APP_ID;
     /** Time for the host to close a test session before the next one starts. */
     private static final long BETWEEN_SESSIONS_MS = 2000;
 
@@ -207,6 +206,12 @@ public class AutoSetupActivity extends Activity {
         }
         if (details == null || details.activeAddress == null || details.pairState != PairingManager.PairState.PAIRED) {
             fail(getString(R.string.auto_setup_no_host));
+            return;
+        }
+        if (AutoSetup.hostBusy(details.runningGameId)) {
+            // A test session would end the session running on the host
+            LimeLog.info("Automatic setup: host " + details.name + " is streaming app " + details.runningGameId);
+            fail(getString(R.string.auto_setup_host_busy));
             return;
         }
         computer = details;

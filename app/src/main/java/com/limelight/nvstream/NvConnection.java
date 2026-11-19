@@ -322,6 +322,10 @@ public class NvConnection {
                 } else if (Objects.equals(NvApp.REMOTE_INPUT_UUID, app.getAppUUID())) {
                     // When launching InputOnly, we shouldn't try terminating the current running app
                     return launchNotRunningApp(h, context);
+                } else if (context.streamConfig.getTestPattern()) {
+                    // A test session (automatic setup) never ends a session running on the host
+                    context.connListener.displayMessage("A session is running on the host. End it, then start the automatic setup again.");
+                    return false;
                 } else {
                     return quitAndLaunch(h, context);
                 }
