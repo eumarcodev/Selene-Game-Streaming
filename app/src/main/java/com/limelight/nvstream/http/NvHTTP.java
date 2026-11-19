@@ -439,6 +439,7 @@ public class NvHTTP {
         details.pairState = getPairState(serverInfo);
         details.runningGameId = getCurrentGame(serverInfo);
         details.runningGameUUID = getCurrentGameUUID(serverInfo);
+        details.busyWithOtherClient = HostBusy.busyWithOtherClient(getXmlString(serverInfo, HostBusy.BUSY_TAG, false));
 
         // The MJOLNIR codename was used by GFE but never by any third-party server
         details.nvidiaServer = getXmlString(serverInfo, "state", true).contains("MJOLNIR");
@@ -447,6 +448,17 @@ public class NvHTTP {
         details.state = ComputerDetails.State.ONLINE;
 
         return details;
+    }
+
+    /**
+     * Helios extension, one device at a time: claims (true) or releases (false) the host for this device.
+     * @return true when this device owns the host afterwards (always true for a release, and for hosts
+     *         without the extension)
+     */
+    public boolean claimHost(boolean claim) throws IOException, XmlPullParserException {
+        String resp = openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true),
+                "serverinfo", "helioslock=" + (claim ? "1" : "0"));
+        return !claim || HostBusy.claimGranted(getXmlString(resp, HostBusy.LOCK_TAG, false));
     }
 
     public String getCurrentGameUUID(String serverInfo) throws IOException, XmlPullParserException {

@@ -517,7 +517,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
             blockingLoadSpinner = null;
         }
 
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
 
         if (managerBinder != null) {
             managerBinder.stopPolling();

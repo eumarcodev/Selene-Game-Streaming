@@ -261,6 +261,8 @@
     <string name="auto_setup_none">Nenhuma configuração PyroWave acompanhou neste aparelho e nesta rede. Suas configurações não foram alteradas; aqui o HEVC é a melhor escolha.</string>
     <string name="auto_setup_no_host">Nenhum host pareado respondeu. Ligue o PC e tente de novo.</string>
     <string name="auto_setup_choose_host">Escolha o host</string>
+    <string name="host_busy_title">Host ocupado</string>
+    <string name="host_busy_other_device">Este host está em uso por outro aparelho. Saia do host ou encerre a sessão nesse aparelho e tente de novo.</string>
     <string name="auto_setup_host_busy">O host está transmitindo uma sessão. Encerre-a e inicie a configuração automática de novo.</string>
     <string name="auto_setup_session_failed">A sessão de teste com o host não terminou. Confira se o host usa o Helios 1.13 ou mais novo com o PyroWave ligado.</string>
     <string name="title_pyrowave_measure">Medir este aparelho</string>

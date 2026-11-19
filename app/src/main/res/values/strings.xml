@@ -344,6 +344,8 @@
     <string name="auto_setup_none">No PyroWave setup kept up on this device and network. Your settings were not changed; HEVC is the better choice here.</string>
     <string name="auto_setup_no_host">No paired host answered. Turn on the PC and try again.</string>
     <string name="auto_setup_choose_host">Choose the host</string>
+    <string name="host_busy_title">Host busy</string>
+    <string name="host_busy_other_device">This host is in use by another device. Quit or leave the host on that device, then try again.</string>
     <string name="auto_setup_host_busy">The host is streaming a session. End it, then start the automatic setup again.</string>
     <string name="auto_setup_session_failed">The test session with the host did not complete. Check that the host runs Helios 1.13 or later with PyroWave on.</string>
     <string name="title_pyrowave_measure">Measure this device</string>

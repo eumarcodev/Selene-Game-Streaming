@@ -35,6 +35,7 @@ import com.limelight.LimeLog;
 import com.limelight.nvstream.av.audio.AudioRenderer;
 import com.limelight.nvstream.av.video.VideoDecoderRenderer;
 import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.nvstream.http.HostBusy;
 import com.limelight.nvstream.http.HostHttpResponseException;
 import com.limelight.nvstream.http.LimelightCryptoProvider;
 import com.limelight.nvstream.http.NvApp;
@@ -415,6 +416,11 @@ public class NvConnection {
                         context.connListener.stageComplete(appName);
                     } catch (HostHttpResponseException e) {
                         e.printStackTrace();
+                        if (HostBusy.isOtherDeviceRefusal(e.getErrorCode(), e.getErrorMessage())) {
+                            // Another device owns the host: one clear dialog, no generic error
+                            context.connListener.stageFailed(appName, 0, HostBusy.HOST_IN_USE_ERROR);
+                            return;
+                        }
                         context.connListener.displayMessage(e.getMessage());
                         retry = context.connListener.stageFailed(appName, 0, e.getErrorCode());
                         if (!retry) {
