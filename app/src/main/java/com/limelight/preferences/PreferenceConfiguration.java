@@ -173,7 +173,8 @@ public class PreferenceConfiguration {
     private static final boolean ONLY_L3_R3_DEFAULT = false;
     private static final boolean SHOW_GUIDE_BUTTON_DEFAULT = true;
     private static final boolean DEFAULT_ENABLE_HDR = false;
-    private static final boolean DEFAULT_ENABLE_PYROWAVE = false;
+    // On by default; devices without Vulkan 1.1 compute never use it (PyroWaveSupport.isSupported)
+    static final boolean DEFAULT_ENABLE_PYROWAVE = true;
     private static final boolean DEFAULT_ENABLE_PIP = false;
     private static final boolean DEFAULT_ENABLE_PERF_OVERLAY = false;
     private static final boolean DEFAULT_PERF_OVERLAY_BOTTOM = false;
