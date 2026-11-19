@@ -29,16 +29,19 @@ feature/* --PR (no CI build)--> develop --merge--> RC vX.Y.Z-rc.N   (rc.yml, aut
 
 ### Release candidate
 
-Merge a pull request into `develop`. `rc.yml` builds and publishes the next `vX.Y.Z-rc.N`. In parallel it builds the
-same commit as the stable `vX.Y.Z` and keeps it as an artifact of the run (`selene-android-stable`, plus
-`selene-android-stable-play` with Play publishing on; 90 days), for the promotion. A newer merge cancels an
-RC that is still building. Merges that only change Markdown, `docs/`, `.github/` (except `build.yml`) or `version.txt` do not build an RC. To build one anyway:
-**Actions > Release candidate > Run workflow** on `develop`.
+Merge a pull request into `develop`. **Queue release candidate** (`rc-queue.yml`, a few seconds) works out the next
+`vX.Y.Z-rc.N` and starts **Release candidate** (`rc.yml`), whose run is titled `Release candidate vX.Y.Z-rc.N`. It
+builds and publishes that RC and, in parallel, builds the same commit as the stable `vX.Y.Z` and keeps it as an
+artifact of the run (`selene-android-stable`, plus `selene-android-stable-play` with Play publishing on; 90 days), for
+the promotion. A newer merge cancels an RC that is still building. Merges that only change Markdown, `docs/`,
+`.github/` (except `build.yml`) or `version.txt` do not queue an RC. To queue one anyway:
+**Actions > Queue release candidate > Run workflow** on `develop`.
 
 ### Stable
 
-**Actions > Promote to stable > Run workflow**. Leave the RC field empty to promote the latest RC of the current
-`version.txt`, or type a specific one (`v1.10.0-rc.2`). The workflow:
+**Actions > Promote to stable > Run workflow**. Type the version to release (`1.10.0`, the one in `version.txt`) and
+leave the RC field empty to promote its latest RC, or type an RC number (`2` for `v1.10.0-rc.2`). The run is titled
+`Stable release v1.10.0`. The workflow:
 
 1. takes the stable build that the RC's run made, without building again (about 1 minute). Only when that artifact is
    gone (older than 90 days, or its job failed) it builds the RC's commit with the stable version, as the version is

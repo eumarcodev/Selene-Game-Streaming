@@ -1,0 +1,73 @@
+name: Queue release candidate
+
+# Every merge (push) to develop queues the next release candidate. This run only works out the version
+# (version.txt 1.10.0 -> v1.10.0-rc.1, v1.10.0-rc.2, ...) and starts "Release candidate" (rc.yml) with it, so the
+# run that builds and publishes is titled with the version it makes.
+# Changes that cannot affect the binaries (docs, GitHub config other than the build) do not queue an RC.
+# To queue one by hand: Actions > Queue release candidate > Run workflow on develop.
+on:
+  push:
+    branches:
+      - develop
+    # Later patterns win: everything, minus docs, .github and version.txt, plus the build workflow itself.
+    # A version.txt change alone has nothing new to test; the code that comes with it triggers the RC.
+    paths:
+      - "**"
+      - "!**.md"
+      - "!docs/**"
+      - "!.github/**"
+      - "!version.txt"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: rc-queue
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  queue:
+    name: Queue
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout (full history and tags)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Plan and queue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          sha=$(git rev-parse HEAD)
+          base=$(tr -d ' \r\n' < version.txt)
+          [[ "${base}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version.txt must look like X.Y.Z, got '${base}'"
+          git rev-parse -q --verify "refs/tags/v${base}" > /dev/null &&
+            fail "v${base} is already released. Bump version.txt on develop (promote.yml does it after each release)."
+          latest=$( (git tag -l 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true) | sed 's/^v//' | sort -V | tail -1)
+          if [[ -n "${latest}" && "$(printf '%s\n%s\n' "${latest}" "${base}" | sort -V | tail -1)" != "${base}" ]]; then
+            fail "version.txt ${base} is lower than the latest stable release v${latest}"
+          fi
+
+          last=$( (git tag -l "v${base}-rc.*" || true) | sed -E 's/.*-rc\.//' | sort -n | tail -1)
+          if [[ -n "${last}" && "$(git rev-list -n1 "v${base}-rc.${last}")" == "${sha}" ]]; then
+            echo "v${base}-rc.${last} already points at this commit: nothing to queue" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if git rev-parse -q --verify origin/master > /dev/null && git merge-base --is-ancestor "${sha}" origin/master; then
+            echo "This commit is already released on master: nothing to queue" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          version="${base}-rc.$((${last:-0} + 1))"
+          gh workflow run rc.yml --repo "${GITHUB_REPOSITORY}" --ref develop -f version="${version}" -f sha="${sha}"
+          echo "::notice title=Queued::Release candidate v${version} at ${sha:0:8}"
+          echo "Queued **Release candidate v${version}** at ${sha}" >> "$GITHUB_STEP_SUMMARY"

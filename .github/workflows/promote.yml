@@ -1,7 +1,8 @@
 name: Promote to stable
-run-name: Promote ${{ inputs.rc || 'latest RC' }} to stable
+run-name: Stable release v${{ inputs.version }}
 
 # Manual (Actions > Promote to stable > Run workflow): turns a tested release candidate into the stable release.
+# Type the version to release (X.Y.Z); its latest RC is promoted unless a specific RC number is given.
 #   1. takes the stable build (vX.Y.Z) that the RC's run made in parallel with the RC (rc.yml, artifact
 #      selene-android-stable); only when that artifact is gone (expired after 90 days, or the job failed) it builds
 #      the RC's commit again with the stable version (the version is baked into the binaries)
@@ -12,8 +13,12 @@ run-name: Promote ${{ inputs.rc || 'latest RC' }} to stable
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: "Version to release, without the leading v (e.g. 1.10.0). It is in develop's version.txt file."
+        type: string
+        required: true
       rc:
-        description: "RC to promote (e.g. v1.10.0-rc.2). Empty: the latest RC of the version in develop's version.txt file."
+        description: "RC number to promote (e.g. 2 for v1.10.0-rc.2). Empty: the latest RC of that version."
         type: string
         required: false
         default: ""
@@ -47,19 +52,24 @@ jobs:
       - name: Plan
         id: plan
         env:
+          VERSION: ${{ inputs.version }}
           RC: ${{ inputs.rc }}
         run: |
           set -euo pipefail
           fail() { echo "::error::$1"; exit 1; }
 
-          rc="${RC// /}"
-          if [[ -z "${rc}" ]]; then
-            base=$(tr -d ' \r\n' < version.txt)
-            rc=$( (git tag -l "v${base}-rc.*" || true) | sort -V | tail -1)
-            [[ -n "${rc}" ]] || fail "There is no release candidate for ${base} yet (version.txt on develop)"
+          version="${VERSION// /}"
+          version="${version#v}"
+          [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version must look like X.Y.Z, got '${VERSION}'"
+          n="${RC// /}"
+          n="${n##*-rc.}"
+          if [[ -z "${n}" ]]; then
+            rc=$( (git tag -l "v${version}-rc.*" || true) | sort -V | tail -1)
+            [[ -n "${rc}" ]] || fail "There is no release candidate for ${version} yet"
+          else
+            [[ "${n}" =~ ^[0-9]+$ ]] || fail "rc must be a number (2 for v${version}-rc.2), got '${RC}'"
+            rc="v${version}-rc.${n}"
           fi
-          [[ "${rc}" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-rc\.[0-9]+$ ]] || fail "RC must look like vX.Y.Z-rc.N, got '${rc}'"
-          version="${BASH_REMATCH[1]}"
           git rev-parse -q --verify "refs/tags/${rc}" > /dev/null || fail "Tag ${rc} does not exist"
           git rev-parse -q --verify "refs/tags/v${version}" > /dev/null && fail "v${version} is already released"
 
@@ -72,23 +82,28 @@ jobs:
             echo "sha=${sha}"
             echo "version=${version}"
             echo "previous=${previous}"
+            echo "rc=${rc}"
           } >> "$GITHUB_OUTPUT"
-          echo "Promote ${rc} (${sha}) to v${version}" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=Promote to stable::${rc} -> v${version}"
+          echo "Stable release **v${version}** from ${rc} (${sha})" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Stable release::v${version} from ${rc} (${sha:0:8})"
 
-      # The RC run of this commit built vX.Y.Z next to the RC; reuse it when its artifacts are still there
-      # (with Play publishing on, the Play bundle artifact must be there too)
+      # The RC's run built vX.Y.Z next to the RC; reuse it when its artifacts are still there (with Play publishing
+      # on, the Play bundle artifact must be there too). RC runs are titled "Release candidate vX.Y.Z-rc.N"; older
+      # ones (push-triggered) are found by their commit.
       - name: Find the stable build of the RC
         id: reuse
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.plan.outputs.sha }}
+          RC: ${{ steps.plan.outputs.rc }}
           NEED: ${{ vars.PLAY_PUBLISHING == 'true' && 2 || 1 }}
         run: |
           set -euo pipefail
           run=""
-          for id in $(gh run list --repo "${GITHUB_REPOSITORY}" --workflow rc.yml --commit "${SHA}" --status success \
-              --json databaseId --jq '.[].databaseId'); do
+          for id in $(gh run list --repo "${GITHUB_REPOSITORY}" --workflow rc.yml --status success -L 200 \
+              --json databaseId,displayTitle,headSha,event \
+              --jq ".[] | select(.displayTitle == \"Release candidate ${RC}\"
+                     or (.event == \"push\" and .headSha == \"${SHA}\")) | .databaseId"); do
             found=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/artifacts" \
               --jq '[.artifacts[] | select((.name == "selene-android-stable" or .name == "selene-android-stable-play")
                      and (.expired | not))] | length')
