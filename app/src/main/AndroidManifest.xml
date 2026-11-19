@@ -136,6 +136,11 @@
             <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
         </activity>
         <activity
+            android:name=".AutoSetupActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection"
+            android:theme="@style/StreamTheme" />
+        <activity
             android:name=".ProfilesActivity"
             android:resizeableActivity="true"
             android:enableOnBackInvokedCallback="true"

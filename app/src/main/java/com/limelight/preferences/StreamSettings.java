@@ -186,6 +186,13 @@ public class StreamSettings extends AppCompatActivity {
                 runDecodeBenchmark();
                 return true;
             });
+            Preference autoSetup = findPreference("pyrowave_auto_setup");
+            if (autoSetup != null) {
+                autoSetup.setOnPreferenceClickListener(preference -> {
+                    startActivity(new Intent(getActivity(), com.limelight.AutoSetupActivity.class));
+                    return true;
+                });
+            }
             pyroWavePref.setOnPreferenceChangeListener((preference, newValue) -> {
                 if (Boolean.TRUE.equals(newValue) && loadDecodeBenchmark().isEmpty() && getView() != null) {
                     // After the change is saved, so the summaries see PyroWave on

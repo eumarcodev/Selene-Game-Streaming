@@ -241,7 +241,8 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             info.fps = framesDecoded.getAndSet(0) * 1000f / elapsed;
             info.decodeMs = (float) averageDecodeMs;
             info.skipped = framesSkipped.getAndSet(0);
-            info.avgFrameKb = seen == 0 ? 0 : (int) (frameBytes.getAndSet(0) / seen / 1024);
+            long bytes = seen == 0 ? 0 : frameBytes.getAndSet(0);
+            info.avgFrameKb = seen == 0 ? 0 : (int) (bytes / seen / 1024);
             info.maxFrameKb = maxFrameBytes.getAndSet(0) / 1024;
             int hostFrames = hostLatencyFrames.getAndSet(0);
             info.hostLatencyMs = hostFrames == 0 ? 0 : hostLatencyTenthsMs.getAndSet(0) / 10f / hostFrames;
@@ -263,24 +264,83 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
                         seen == 0 ? 0.0 : (double) queueWaitSum / seen, queueWaitMax,
                         seen == 0 ? 0.0 : (double) assemblySum / seen, assemblyMax));
             }
+            int counted;
             synchronized (handleLock) {
                 if (handle != 0 && PyroWaveNative.nativeStageStats(handle, stageMs) > 0) {
                     info.stageMs = stageMs.clone();
                 }
-                if (handle != 0) {
-                    int counted = PyroWaveNative.nativePresentStats(handle, shownCounts);
-                    info.shownPercent = PresentRegularity.percentages(counted, shownCounts);
+                counted = handle != 0 ? PyroWaveNative.nativePresentStats(handle, shownCounts) : -1;
+                info.shownPercent = PresentRegularity.percentages(counted, shownCounts);
+                if (counted < 0) {
+                    shownCounts[0] = shownCounts[1] = shownCounts[2] = 0;
                 }
             }
+            StreamStatsSampler.Sample net = statsSampler.sample(now);
+            addToSetupMeasurement(seen, bytes, assemblySum, counted >= 0, net);
             // Next to the stage times the native player logs once a second
             android.util.Log.i("SelenePyroWave", "presentation: " + PresentRegularity.describe(info.shownPercent));
             if (seen == 0) {
                 frameBytes.set(0);
             }
 
-            perfListener.onPerfUpdate(overlayFormatter.format(info, statsSampler.sample(now)));
+            perfListener.onPerfUpdate(overlayFormatter.format(info, net));
         } catch (RuntimeException e) {
             // The overlay must never take the stream down
+        }
+    }
+
+    // Automatic setup (eumarcodev/Helios-Server#130): totals of a test session, added once a second while on.
+    private final Object setupLock = new Object();
+    private boolean setupMeasuring;
+    private long setupFrames, setupBytes, setupAssemblyMs, setupDelivered, setupIncomplete;
+    private final int[] setupShown = new int[3];
+    private boolean setupShownUnknown;
+
+    private void addToSetupMeasurement(int seen, long bytes, long assemblyMs, boolean shownKnown,
+                                       StreamStatsSampler.Sample net) {
+        synchronized (setupLock) {
+            if (!setupMeasuring) {
+                return;
+            }
+            setupFrames += seen;
+            setupBytes += bytes;
+            setupAssemblyMs += assemblyMs;
+            if (shownKnown) {
+                for (int i = 0; i < 3; i++) {
+                    setupShown[i] += shownCounts[i];
+                }
+            } else {
+                setupShownUnknown = true;
+            }
+            if (net != null) {
+                setupDelivered += net.framesDelivered + net.framesLost;
+                setupIncomplete += net.framesIncomplete + net.framesLost;
+            }
+        }
+    }
+
+    /** Starts (or restarts) the totals of an automatic setup test session. */
+    public void startSetupMeasurement() {
+        synchronized (setupLock) {
+            setupFrames = setupBytes = setupAssemblyMs = setupDelivered = setupIncomplete = 0;
+            setupShown[0] = setupShown[1] = setupShown[2] = 0;
+            setupShownUnknown = false;
+            setupMeasuring = true;
+        }
+    }
+
+    /** Stops the totals and returns them, with the refresh rate the panel applied. */
+    public com.limelight.preferences.AutoSetup.Measurement stopSetupMeasurement(float appliedHz) {
+        synchronized (setupLock) {
+            setupMeasuring = false;
+            com.limelight.preferences.AutoSetup.Measurement m = new com.limelight.preferences.AutoSetup.Measurement();
+            m.frames = (int) setupFrames;
+            m.avgFrameBytes = setupFrames == 0 ? 0 : (double) setupBytes / setupFrames;
+            m.avgTransitMs = setupFrames == 0 ? 0 : (double) setupAssemblyMs / setupFrames;
+            m.incompletePercent = setupDelivered == 0 ? 0 : 100.0 * setupIncomplete / setupDelivered;
+            m.shownCounts = setupShownUnknown ? null : setupShown.clone();
+            m.appliedHz = appliedHz;
+            return m;
         }
     }
 

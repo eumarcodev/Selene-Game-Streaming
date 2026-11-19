@@ -229,6 +229,11 @@
             android:title="@string/title_enable_pyrowave"
             app:iconSpaceReserved="false" />
         <Preference
+            android:key="pyrowave_auto_setup"
+            android:summary="@string/auto_setup_summary"
+            android:title="@string/auto_setup_title"
+            app:iconSpaceReserved="false" />
+        <Preference
             android:key="pyrowave_measure_device"
             android:summary="@string/summary_pyrowave_measure"
             android:title="@string/title_pyrowave_measure"

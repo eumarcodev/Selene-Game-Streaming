@@ -278,6 +278,35 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     /** Boolean: ask Helios for a test session with a synthetic picture (eumarcodev/Helios-Server#128). */
     public static final String EXTRA_TEST_PATTERN = "TestPattern";
 
+    // Automatic setup (eumarcodev/Helios-Server#130): a measuring session with these settings instead of the
+    // user's, which ends by itself after EXTRA_SETUP_SECONDS and returns its measurement as the activity result.
+    public static final String EXTRA_SETUP_SECONDS = "SetupSeconds";
+    public static final String EXTRA_SETUP_WIDTH = "SetupWidth";
+    public static final String EXTRA_SETUP_HEIGHT = "SetupHeight";
+    public static final String EXTRA_SETUP_FPS = "SetupFps";
+    public static final String EXTRA_SETUP_PYROWAVE_KBPS = "SetupPyroWaveKbps";
+    public static final String EXTRA_SETUP_TOKEN = "SetupToken";
+
+    /**
+     * Outcome of an automatic setup session. Game is singleTask, so it cannot return an activity result: the
+     * setup screen reads this when it comes back, matching its token. measurement is null when cancelled.
+     */
+    public static final class SetupOutcome {
+        public final int token;
+        public final com.limelight.preferences.AutoSetup.Measurement measurement;
+
+        SetupOutcome(int token, com.limelight.preferences.AutoSetup.Measurement measurement) {
+            this.token = token;
+            this.measurement = measurement;
+        }
+    }
+
+    public static volatile SetupOutcome lastSetupOutcome;
+    private int setupToken;
+    /** Seconds of a setup session not measured: the stream and the display mode settle first. */
+    private static final int SETUP_SETTLE_SECONDS = 3;
+    private int setupSeconds;
+
     public static final String CLIPBOARD_IDENTIFIER = "ArtemisStreaming";
 
     private String appUUID;
@@ -362,6 +391,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // Read the stream preferences
         prefConfig = PreferenceConfiguration.readPreferences(this);
+        setupSeconds = getIntent().getIntExtra(EXTRA_SETUP_SECONDS, 0);
+        setupToken = getIntent().getIntExtra(EXTRA_SETUP_TOKEN, 0);
+        if (setupSeconds > 0) {
+            // A measuring session of the automatic setup: its own size, rate and bitrate, PyroWave, nothing saved
+            prefConfig.width = getIntent().getIntExtra(EXTRA_SETUP_WIDTH, prefConfig.width);
+            prefConfig.height = getIntent().getIntExtra(EXTRA_SETUP_HEIGHT, prefConfig.height);
+            prefConfig.fps = getIntent().getIntExtra(EXTRA_SETUP_FPS, Math.round(prefConfig.fps));
+            prefConfig.enablePyroWave = true;
+            prefConfig.pyroWaveBitrate = getIntent().getIntExtra(EXTRA_SETUP_PYROWAVE_KBPS, prefConfig.pyroWaveBitrate);
+            prefConfig.enablePerfOverlay = false;
+            // However the test session ends (measured, Back, or cancelled from the setup screen), quit it on the host
+            quitOnStop = true;
+        }
         tombstonePrefs = Game.this.getSharedPreferences("DecoderTombstone", 0);
 
         if (prefConfig.fullScreen) {
@@ -773,7 +815,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // setting is read here because prefConfig.framePacing was overwritten with BALANCED above.
         String framePacingSetting = android.preference.PreferenceManager.getDefaultSharedPreferences(this)
                 .getString("frame_pacing", "latency");
-        pyroWaveRenderer.setFramePacing(!"latency".equals(framePacingSetting));
+        // The automatic setup always measures with pacing on: that is the setting it saves
+        pyroWaveRenderer.setFramePacing(setupSeconds > 0 || !"latency".equals(framePacingSetting));
         videoRenderer = new FormatSwitchingRenderer(decoderRenderer, pyroWaveRenderer);
 
         int gamepadMask = ControllerHandler.getAttachedControllerMask(this);
@@ -3803,8 +3846,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 hideSystemUi(1000);
 
-                // Read the applied refresh rate once the display mode has settled
-                timerHandler.postDelayed(Game.this::maybeSuggestEvenFrameRate, 1500);
+                if (setupSeconds > 0) {
+                    timerHandler.postDelayed(Game.this::startSetupMeasurement, SETUP_SETTLE_SECONDS * 1000L);
+                } else {
+                    // Read the applied refresh rate once the display mode has settled
+                    timerHandler.postDelayed(Game.this::maybeSuggestEvenFrameRate, 1500);
+                }
 
                 if (prefConfig.preventPacketLoss) {
                     timerHandler.postDelayed(backgroundPing, 1000);
@@ -3828,6 +3875,28 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // This may be null if launched from the "Resume Session" PC context menu item
             shortcutHelper.reportGameLaunched(computer, app);
         }
+    }
+
+    private void startSetupMeasurement() {
+        if (!connected || isFinishing() || pyroWaveRenderer == null) {
+            return;
+        }
+        pyroWaveRenderer.startSetupMeasurement();
+        timerHandler.postDelayed(this::finishSetupMeasurement, setupSeconds * 1000L);
+    }
+
+    private void finishSetupMeasurement() {
+        if (isFinishing()) {
+            return;
+        }
+        float appliedHz = getWindowManager().getDefaultDisplay().getRefreshRate();
+        com.limelight.preferences.AutoSetup.Measurement m = pyroWaveRenderer.stopSetupMeasurement(appliedHz);
+        LimeLog.info("Automatic setup measurement: " + m.frames + " frames, " + Math.round(m.avgFrameBytes)
+                + " bytes, transit " + m.avgTransitMs + " ms, incomplete " + m.incompletePercent + "%, panel " + appliedHz + " Hz");
+        lastSetupOutcome = new SetupOutcome(setupToken, m);
+        // End the session on the host too, as "Quit Session" does
+        quitOnStop = true;
+        finish();
     }
 
     /**
@@ -4144,6 +4213,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
+        if (setupSeconds > 0) {
+            // Cancels the automatic setup: end the test session on the host, report nothing
+            lastSetupOutcome = new SetupOutcome(setupToken, null);
+            quitOnStop = true;
+            finish();
+            return;
+        }
         if(prefConfig.enableBackMenu){
             showGameMenu(null);
             return;
