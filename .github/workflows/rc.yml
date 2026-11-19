@@ -145,6 +145,10 @@ jobs:
     name: Google Play
     needs: [prepare, build, publish]
     if: vars.PLAY_PUBLISHING == 'true'
+    # play.yml asks for actions: read (it can download artifacts of another run)
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/play.yml
     secrets:
       PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
