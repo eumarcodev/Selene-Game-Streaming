@@ -85,9 +85,10 @@ jobs:
             echo "tag=v${version}"
           } >> "$GITHUB_OUTPUT"
           echo "RC v${version} at ${sha}: build=${build} (${reason})" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Release candidate::v${version} (stable v${base} built next to it, build=${build})"
 
   build:
-    name: Build
+    name: Build v${{ needs.prepare.outputs.version }}
     needs: prepare
     if: needs.prepare.outputs.build == 'true'
     uses: ./.github/workflows/build.yml
@@ -101,7 +102,7 @@ jobs:
   # The same commit built with the stable version (versionCode + 1), in parallel. It is not published here:
   # promote.yml takes this artifact from this run and publishes it as vX.Y.Z, so promoting does not build again.
   build-stable:
-    name: Build stable
+    name: Build v${{ needs.prepare.outputs.base }} (stable, kept for promote)
     needs: prepare
     if: needs.prepare.outputs.build == 'true'
     uses: ./.github/workflows/build.yml
@@ -114,7 +115,7 @@ jobs:
       artifact-name: selene-android-stable
 
   publish:
-    name: Publish pre-release
+    name: Publish pre-release ${{ needs.prepare.outputs.tag }}
     needs: [prepare, build]
     runs-on: ubuntu-latest
     permissions:
