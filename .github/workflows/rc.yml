@@ -4,7 +4,8 @@ name: Release candidate
 # The version comes from the version.txt file at the repository root:
 #   version.txt 1.10.0 -> v1.10.0-rc.1, v1.10.0-rc.2, ...
 # Changes that cannot affect the binaries (docs, GitHub config other than the build) do not build an RC.
-# A tested RC becomes stable with promote.yml.
+# Each RC is built twice in parallel from the same commit: vX.Y.Z-rc.N (published as a pre-release) and vX.Y.Z (kept
+# as an artifact of this run). A tested RC becomes stable with promote.yml, which publishes that artifact as is.
 # When the repository variable PLAY_PUBLISHING is "true", each RC is also uploaded to a Google Play testing track
 # (PLAY_RC_TRACK, default "alpha" = closed testing). See .github/RELEASING.md, section "Google Play".
 on:
@@ -37,6 +38,7 @@ jobs:
     outputs:
       build: ${{ steps.plan.outputs.build }}
       sha: ${{ steps.plan.outputs.sha }}
+      base: ${{ steps.plan.outputs.base }}
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
     steps:
@@ -78,6 +80,7 @@ jobs:
           {
             echo "build=${build}"
             echo "sha=${sha}"
+            echo "base=${base}"
             echo "version=${version}"
             echo "tag=v${version}"
           } >> "$GITHUB_OUTPUT"
@@ -94,6 +97,21 @@ jobs:
       ref: ${{ needs.prepare.outputs.sha }}
       sign: true
       play-bundle: ${{ vars.PLAY_PUBLISHING == 'true' }}
+
+  # The same commit built with the stable version (versionCode + 1), in parallel. It is not published here:
+  # promote.yml takes this artifact from this run and publishes it as vX.Y.Z, so promoting does not build again.
+  build-stable:
+    name: Build stable
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.prepare.outputs.base }}
+      ref: ${{ needs.prepare.outputs.sha }}
+      sign: true
+      play-bundle: ${{ vars.PLAY_PUBLISHING == 'true' }}
+      artifact-name: selene-android-stable
 
   publish:
     name: Publish pre-release
