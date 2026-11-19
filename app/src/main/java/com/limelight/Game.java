@@ -818,6 +818,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .getString("frame_pacing", "latency");
         // The automatic setup always measures with pacing on: that is the setting it saves
         pyroWaveRenderer.setFramePacing(setupSeconds > 0 || !"latency".equals(framePacingSetting));
+        // The automatic setup measures fixed bitrates, so the budget only follows the link in normal sessions
+        pyroWaveRenderer.setRuntimeBudget(setupSeconds <= 0, prefConfig.pyroWaveMaxFrameKb);
         videoRenderer = new FormatSwitchingRenderer(decoderRenderer, pyroWaveRenderer);
 
         int gamepadMask = ControllerHandler.getAttachedControllerMask(this);

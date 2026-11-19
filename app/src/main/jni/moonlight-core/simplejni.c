@@ -21,6 +21,11 @@ Java_com_limelight_nvstream_jni_MoonBridge_sendExecServerCmd(JNIEnv *env, jclass
     LiSendExecServerCmd(cmdId);
 }
 
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_sendPyroWaveFrameBudget(JNIEnv *env, jclass clazz, jint budgetBytes) {
+    return LiSendPyroWaveFrameBudget((uint32_t) budgetBytes);
+}
+
 JNIEXPORT void JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_sendEmptyPayload(JNIEnv *env, jclass clazz) {
     LiSendEmptyPayload();

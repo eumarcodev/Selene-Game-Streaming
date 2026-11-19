@@ -394,6 +394,10 @@ public class MoonBridge {
 
     public static native void sendExecServerCmd(int cmdId);
 
+    // Helios extension (eumarcodev/Helios-Server#131): new PyroWave frame budget in bytes from the next frame.
+    // Returns a negative value when the host cannot receive it.
+    public static native int sendPyroWaveFrameBudget(int budgetBytes);
+
     public static native void sendEmptyPayload();
 
     public static native void sendMouseMove(short deltaX, short deltaY);
