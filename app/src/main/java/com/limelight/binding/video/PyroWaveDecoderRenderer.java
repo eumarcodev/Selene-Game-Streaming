@@ -65,6 +65,11 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
     private final float[] stageMs = new float[PyroWaveNative.STAGE_COUNT];
     private final int[] shownCounts = new int[3];
     private ScheduledExecutorService statsTimer;
+    // Runtime frame budget (eumarcodev/Helios-Server#131): off in the automatic setup, which measures fixed bitrates
+    private final int bitrateKbps;
+    private boolean runtimeBudget;
+    private int maxFrameKb;
+    private PyroWaveBudgetController budgetController;
 
     /**
      * @param context used to read the overlay strings and the Wi-Fi state
@@ -80,6 +85,17 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         this.perfListener = perfListener;
         this.overlayFormatter = context != null ? new StreamOverlayFormatter(context, lite) : null;
         this.targetMbps = bitrateKbps / 1000f;
+        this.bitrateKbps = bitrateKbps;
+    }
+
+    /**
+     * Lower the frame budget on the host when frames take too long to arrive, and raise it back when the link
+     * recovers, never above the start. Call before start().
+     * @param maxFrameKb the frame size cap asked from the host in KB, 0 for none
+     */
+    public void setRuntimeBudget(boolean enabled, int maxFrameKb) {
+        this.runtimeBudget = enabled;
+        this.maxFrameKb = maxFrameKb;
     }
 
     /** Present frames one frame period apart (true) or as soon as they are decoded (false). Call before start(). */
@@ -111,6 +127,9 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
         if (redrawRate > 0) {
             PyroWaveNative.nativeSetFrameRate(handle, redrawRate, framePacing);
         }
+        budgetController = runtimeBudget && redrawRate > 0
+                ? new PyroWaveBudgetController(PyroWaveBudgetController.budgetBytes(bitrateKbps, redrawRate, maxFrameKb), redrawRate)
+                : null;
         startStatsTimer();
     }
 
@@ -277,6 +296,7 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             }
             StreamStatsSampler.Sample net = statsSampler.sample(now);
             addToSetupMeasurement(seen, bytes, assemblySum, counted >= 0, net);
+            adjustFrameBudget(seen, assemblySum);
             // Next to the stage times the native player logs once a second
             android.util.Log.i("SelenePyroWave", "presentation: " + PresentRegularity.describe(info.shownPercent));
             if (seen == 0) {
@@ -286,6 +306,26 @@ public class PyroWaveDecoderRenderer extends VideoDecoderRenderer {
             perfListener.onPerfUpdate(overlayFormatter.format(info, net));
         } catch (RuntimeException e) {
             // The overlay must never take the stream down
+        }
+    }
+
+    private void adjustFrameBudget(int seen, long assemblySumMs) {
+        PyroWaveBudgetController controller = budgetController;
+        if (controller == null) {
+            return;
+        }
+        double avgAssemblyMs = seen == 0 ? 0 : (double) assemblySumMs / seen;
+        long before = controller.getBudget();
+        long budget = controller.onSecond(seen, avgAssemblyMs);
+        if (budget != PyroWaveBudgetController.NO_CHANGE) {
+            int sent = MoonBridge.sendPyroWaveFrameBudget((int) budget);
+            android.util.Log.i("SelenePyroWave", String.format(java.util.Locale.US,
+                    "frame budget %d -> %d KB (assembly avg %.1f ms, start %d KB, floor %d KB)%s",
+                    before / 1024, budget / 1024, avgAssemblyMs, controller.getStartBudget() / 1024,
+                    controller.getMinBudget() / 1024, sent < 0 ? ", host does not support it" : ""));
+            if (sent < 0) {
+                budgetController = null;
+            }
         }
     }
 

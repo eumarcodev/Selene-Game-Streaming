@@ -223,7 +223,7 @@
         android:title="@string/category_pyrowave_settings"
         app:iconSpaceReserved="false">
         <CheckBoxPreference
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="checkbox_enable_pyrowave"
             android:summary="@string/summary_enable_pyrowave"
             android:title="@string/title_enable_pyrowave"

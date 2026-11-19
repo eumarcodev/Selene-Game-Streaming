@@ -400,7 +400,7 @@ public class StreamSettings extends AppCompatActivity {
             }
             Preference resolution = findPreference(PreferenceConfiguration.RESOLUTION_PREF_STRING);
             if (resolution != null) {
-                boolean pyroWaveOn = prefs.getBoolean("checkbox_enable_pyrowave", false);
+                boolean pyroWaveOn = prefs.getBoolean("checkbox_enable_pyrowave", PreferenceConfiguration.DEFAULT_ENABLE_PYROWAVE);
                 String base = getString(R.string.summary_resolution_list);
                 resolution.setSummary(line != null && pyroWaveOn ? base + "\n" + line : base);
             }
@@ -412,7 +412,7 @@ public class StreamSettings extends AppCompatActivity {
                 return;
             }
             SharedPreferences prefs = getPrefs();
-            if (!prefs.getBoolean("checkbox_enable_pyrowave", false)) {
+            if (!prefs.getBoolean("checkbox_enable_pyrowave", PreferenceConfiguration.DEFAULT_ENABLE_PYROWAVE)) {
                 return;
             }
             List<DecodeBenchmark.Result> results = loadDecodeBenchmark();
