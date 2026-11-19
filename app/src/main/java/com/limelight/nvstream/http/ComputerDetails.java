@@ -79,6 +79,8 @@ public class ComputerDetails {
     public PairingManager.PairState pairState;
     public int runningGameId;
     public String runningGameUUID;
+    // Helios: another device owns this host (one device at a time, from opening the host until leaving it)
+    public boolean busyWithOtherClient;
     public String rawAppList;
     public boolean nvidiaServer;
 
@@ -158,6 +160,7 @@ public class ComputerDetails {
         this.pairState = details.pairState;
         this.runningGameId = details.runningGameId;
         this.runningGameUUID = details.runningGameUUID;
+        this.busyWithOtherClient = details.busyWithOtherClient;
         this.nvidiaServer = details.nvidiaServer;
         this.rawAppList = details.rawAppList;
 

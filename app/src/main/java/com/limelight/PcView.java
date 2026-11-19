@@ -393,7 +393,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     protected void onStop() {
         super.onStop();
 
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
     }
 
     @Override
@@ -560,7 +560,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
                     message = e.getMessage();
                 }
 
-                Dialog.closeDialogs();
+                Dialog.closeDialogs(PcView.this);
 
                 final String toastMessage = message;
                 final boolean toastSuccess = success;
@@ -725,12 +725,48 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
             return;
         }
 
-        Intent i = new Intent(this, AppView.class);
+        // Helios serves one device at a time: another device that owns the host keeps this one out of the app list
+        if (computer.busyWithOtherClient) {
+            showHostBusy();
+            return;
+        }
+
+        final Intent i = new Intent(this, AppView.class);
         i.putExtra(AppView.NAME_EXTRA, computer.name);
         i.putExtra(AppView.UUID_EXTRA, computer.uuid);
         i.putExtra(AppView.NEW_PAIR_EXTRA, newlyPaired);
         i.putExtra(AppView.SHOW_HIDDEN_APPS_EXTRA, showHiddenGames);
-        startActivity(i);
+
+        // Claim the host before showing its apps (the claim and the check are one step on the host)
+        final String uniqueId = managerBinder.getUniqueId();
+        new Thread(() -> {
+            boolean granted = true;
+            try {
+                NvHTTP http = new NvHTTP(ServerHelper.getCurrentAddressFromComputer(computer),
+                        computer.httpsPort, uniqueId, computer.serverCert,
+                        PlatformBinding.getCryptoProvider(PcView.this));
+                granted = http.claimHost(true);
+            } catch (Exception e) {
+                // Unreachable host or old host: open the app list as before, it reports its own errors
+                LimeLog.warning("Host claim failed: " + e);
+            }
+            final boolean open = granted;
+            runOnUiThread(() -> {
+                if (isFinishing()) {
+                    return;
+                }
+                if (open) {
+                    startActivity(i);
+                } else {
+                    showHostBusy();
+                }
+            });
+        }).start();
+    }
+
+    private void showHostBusy() {
+        Dialog.displayDialog(PcView.this, getResources().getString(R.string.host_busy_title),
+                getResources().getString(R.string.host_busy_other_device), false);
     }
 
     @Override

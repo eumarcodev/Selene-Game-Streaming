@@ -35,6 +35,7 @@ import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.StreamConfiguration;
 import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.nvstream.http.HostBusy;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.input.KeyboardPacket;
@@ -1883,7 +1884,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         super.onStop();
 
         SpinnerDialog.closeDialogs(this);
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
 
         if (virtualController != null) {
             virtualController.hide();
@@ -3645,6 +3646,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         }
                         case -408: {
                             dialogText += "\n\n" + getResources().getString(R.string.error_msg_timeout);
+                            break;
+                        }
+                        case HostBusy.HOST_IN_USE_ERROR: {
+                            // Helios: another device owns the host
+                            dialogText = getResources().getString(R.string.host_busy_other_device);
                             break;
                         }
                         default: {

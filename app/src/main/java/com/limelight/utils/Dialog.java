@@ -1,6 +1,7 @@
 package com.limelight.utils;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -27,16 +28,22 @@ public class Dialog implements Runnable {
         this.runOnDismiss = runOnDismiss;
     }
 
-    public static void closeDialogs()
+    // Closes only the dialogs owned by this activity. A global close let a stopping
+    // activity (ShortcutTrampoline, AppView) dismiss the error dialog Game had just shown.
+    public static void closeDialogs(Activity owner)
     {
         synchronized (rundownDialogs) {
-            for (Dialog d : rundownDialogs) {
+            Iterator<Dialog> it = rundownDialogs.iterator();
+            while (it.hasNext()) {
+                Dialog d = it.next();
+                if (d.activity != owner) {
+                    continue;
+                }
                 if (d.alert.isShowing()) {
                     d.alert.dismiss();
                 }
+                it.remove();
             }
-
-            rundownDialogs.clear();
         }
     }
 

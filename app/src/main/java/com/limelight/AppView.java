@@ -9,9 +9,15 @@ import com.google.android.material.floatingactionbutton.ExtendedFloatingActionBu
 import com.limelight.computers.ComputerManagerListener;
 import com.limelight.computers.ComputerManagerService;
 import com.limelight.grid.AppGridAdapter;
+import com.limelight.binding.PlatformBinding;
 import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.nvstream.http.HostBusy;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import com.limelight.nvstream.http.PairingManager;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
@@ -65,6 +71,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
     private SpinnerDialog blockingLoadSpinner;
     private String lastRawApplist;
     private int lastRunningAppId;
+    private ScheduledExecutorService hostClaimTimer;
     private boolean suspendGridUpdates;
     private boolean inForeground;
     private boolean showHiddenApps;
@@ -381,7 +388,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         super.onDestroy();
 
         SpinnerDialog.closeDialogs(this);
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
 
         if (managerBinder != null) {
             unbindService(serviceConnection);
@@ -397,6 +404,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
 
         inForeground = true;
         startComputerUpdates();
+        startHostClaim();
 
         ExtendedFloatingActionButton profilesButton = findViewById(R.id.profilesButton);
         // User report Samsung and Xiaomi devices have this problem
@@ -419,6 +427,68 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
 
         inForeground = false;
         stopComputerUpdates();
+        stopHostClaim(isFinishing());
+    }
+
+    // Helios serves one device at a time: while this app list is shown, this device keeps the host. The claim is
+    // renewed every 2 s and released when the list closes (the host also drops it 6 s after the last renewal).
+    private void startHostClaim() {
+        stopHostClaim(false);
+        hostClaimTimer = Executors.newSingleThreadScheduledExecutor();
+        hostClaimTimer.scheduleWithFixedDelay(() -> {
+            NvHTTP http = hostClaimHttp();
+            if (http == null) {
+                return;
+            }
+            try {
+                if (!http.claimHost(true)) {
+                    // Another device owns the host (for example it was opened from a shortcut): leave the list
+                    runOnUiThread(() -> {
+                        if (!isFinishing()) {
+                            Dialog.displayDialog(AppView.this, getResources().getString(R.string.host_busy_title),
+                                    getResources().getString(R.string.host_busy_other_device), true);
+                        }
+                    });
+                    stopHostClaim(false);
+                }
+            } catch (Exception e) {
+                LimeLog.warning("Host claim renewal failed: " + e);
+            }
+        }, 0, HostBusy.CLAIM_RENEW_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void stopHostClaim(boolean release) {
+        ScheduledExecutorService timer = hostClaimTimer;
+        hostClaimTimer = null;
+        if (timer != null) {
+            timer.shutdownNow();
+        }
+        if (release) {
+            final NvHTTP http = hostClaimHttp();
+            if (http != null) {
+                new Thread(() -> {
+                    try {
+                        http.claimHost(false);
+                    } catch (Exception e) {
+                        LimeLog.warning("Host claim release failed: " + e);
+                    }
+                }).start();
+            }
+        }
+    }
+
+    private NvHTTP hostClaimHttp() {
+        ComputerDetails details = computer;
+        ComputerManagerService.ComputerManagerBinder binder = managerBinder;
+        if (details == null || binder == null) {
+            return null;
+        }
+        try {
+            return new NvHTTP(ServerHelper.getCurrentAddressFromComputer(details), details.httpsPort,
+                    binder.getUniqueId(), details.serverCert, PlatformBinding.getCryptoProvider(this));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
