@@ -1,0 +1,67 @@
+name: Queue stable release
+
+# Every merge (push) to master releases the version in master's version.txt. This run only works out the version and
+# starts "Promote to stable" (promote.yml) with it and with the merge commit, so the run that publishes is titled
+# "Stable release vX.Y.Z". promote.yml publishes the stable build made next to that version's latest RC, as long as
+# master builds the same as that RC (only Markdown, docs/, .github/ other than build.yml and version.txt may differ).
+# A push that changes nothing in the build since the last stable release (docs, CI config) queues nothing.
+# To queue one by hand: Actions > Queue stable release > Run workflow on master.
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: stable-queue
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  queue:
+    name: Queue
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout (full history and tags)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Plan and queue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          sha=$(git rev-parse HEAD)
+          version=$(tr -d ' \r\n' < version.txt)
+          [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version.txt must look like X.Y.Z, got '${version}'"
+          if git rev-parse -q --verify "refs/tags/v${version}" > /dev/null; then
+            echo "v${version} is already released: nothing to queue" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Nothing that goes into the build changed since the last stable release: nothing to release
+          latest=$( (git tag -l 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true) | sort -V | tail -1)
+          if [[ -n "${latest}" ]]; then
+            changed=$( (git diff --name-only "${latest}" "${sha}" -- . ':(exclude)*.md' ':(exclude)docs' \
+                          ':(exclude).github' ':(exclude)version.txt'
+                        git diff --name-only "${latest}" "${sha}" -- .github/workflows/build.yml) | sort -u)
+            if [[ -z "${changed}" ]]; then
+              echo "master builds the same as ${latest}: nothing to queue" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+
+          [[ -n "$(git tag -l "v${version}-rc.*")" ]] ||
+            fail "There is no release candidate for ${version}: merge into develop and let its RC finish before merging into master"
+
+          gh workflow run promote.yml --repo "${GITHUB_REPOSITORY}" --ref master -f version="${version}" -f master="${sha}"
+          echo "::notice title=Queued::Stable release v${version} at ${sha:0:8}"
+          echo "Queued **Stable release v${version}** at ${sha}" >> "$GITHUB_STEP_SUMMARY"
