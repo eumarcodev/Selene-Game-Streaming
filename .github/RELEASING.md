@@ -12,7 +12,7 @@ feature/* --PR (no CI build)--> develop --merge--> RC vX.Y.Z-rc.N   (rc.yml, aut
                                        test it, then merge develop into master
                                                      |
                      Queue stable release + Promote to stable --> STABLE vX.Y.Z (latest, tagged on master)
-                     version.txt on develop --> next minor
+                     PR: version.txt on develop --> next minor (merge it)
 ```
 
 | Channel | Source | When | Version | GitHub release |
@@ -20,8 +20,11 @@ feature/* --PR (no CI build)--> develop --merge--> RC vX.Y.Z-rc.N   (rc.yml, aut
 | RC | `develop` | every merge that changes more than docs | `1.9.0-rc.3` | pre-release |
 | Stable | `master` (same build as the RC) | every merge of `develop` into `master` | `1.10.0` | latest |
 
-- `develop`: integration branch; pull requests go here.
+- `develop`: integration branch and the repository's default branch; pull requests go here.
 - `master`: released code only. Merging `develop` into it (PR `develop` -> `master`) releases the stable version.
+- Both are protected by the repository ruleset `master-develop`: no deletion, no force-push, and every change comes
+  through a pull request (no approval needed). It has no bypass, as GitHub does not allow GitHub Actions as a bypass
+  actor in a personal repository; that is why the version bump below is a pull request.
 - `version.txt` (repository root, on `develop`): the version the next stable release will have. RCs are numbered after it.
   It is not called `VERSION` because on Windows that name collides with the C++ standard header `<version>`.
 
@@ -45,15 +48,18 @@ Merge `develop` into `master` (PR `develop` -> `master`) after the RC of `develo
 error when `master` builds differently from the latest RC of that version (only Markdown, `docs/`, `.github/` other than
 `build.yml` and `version.txt` may differ), and queues nothing when nothing in the build changed since the last stable
 release. To release by hand instead: **Actions > Promote to stable > Run workflow**, type the version (`1.10.0`) and
-optionally an RC number (`2` for `v1.10.0-rc.2`); this fast-forwards `master` to the RC's commit, so it only works while
-`master` has no merge commits that `develop` lacks. The workflow:
+optionally an RC number (`2` for `v1.10.0-rc.2`); this fast-forwards `master` to the RC's commit, which the ruleset
+now rejects (direct push to `master`), so release by merging `develop` into `master`. The workflow:
 
 1. takes the stable build that the RC's run made, without building again (about 1 minute). Only when that artifact is
    gone (older than 90 days, or its job failed) it builds the RC's commit with the stable version, as the version is
    baked into the APKs;
 2. creates the tag `vX.Y.Z` (on the merge commit of `master`, or on the RC's commit when run by hand) and publishes it
    as the latest release, with notes since the previous stable release;
-3. bumps `version.txt` on `develop` to the next minor version (`1.10.0` -> `1.11.0`).
+3. opens a pull request `chore: start 1.11.0 after releasing v1.10.0` (branch `feature/start-1.11.0`) that bumps
+   `version.txt` on `develop` to the next minor version. **Merge it before the next merge into `develop`**: until then
+   `version.txt` still names the released version and `rc-queue.yml` refuses to queue an RC. Being a version-only
+   change, its merge queues no RC.
 
 ### Patch release
 
