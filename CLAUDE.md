@@ -43,7 +43,7 @@ cmd /c "cd /d E:\projects\pessoal\network-game\Selene-Game-Streaming && E:\proje
 - On Mali, GPU timestamps under-report when frames overlap: measure decode as wall-clock time per frame with the GPU saturated and the surface sized like the stream.
 - After restoring a C/C++ file with `Copy-Item`, `touch` it: ndk-build skips files with old timestamps and the APK silently keeps the old code.
 - Files written from PowerShell 5 must be UTF-8 **without BOM** (a BOM breaks javac).
-- Branches: `feature/*` from `develop`, PR to `develop`. **No `release/*`, `hotfix/*` or nightly.** Never commit directly to `develop` or `master`.
+- Branches: `feature/*` from `develop` (the default branch), PR to `develop`. **No `release/*`, `hotfix/*` or nightly.** Never commit directly to `develop` or `master`: the `master-develop` ruleset rejects direct pushes, force-pushes and deletion of both (no bypass, not even for GitHub Actions).
 - After any stream test on a device: Back → "Quit Session" → "SIM", and restore the debug prefs. Do not force-stop mid-session (it leaves the session open on the host).
 - In adb scripts wait for the element (`uiautomator dump`) before every tap and verify the result; after ONE failed step take a screenshot and diagnose, never repeat it blindly.
 
@@ -53,14 +53,14 @@ cmd /c "cd /d E:\projects\pessoal\network-game\Selene-Game-Streaming && E:\proje
 - Pull requests are not built in CI: build and run the unit tests locally before opening one.
 - Do not trust AI-generated tests alone (`.github/CONTRIBUTING.md`): test each change by hand on a real device, and back performance claims with an alternated A/B measurement.
 - Conventional Commits, one commit per logical phase, temporary debug logs out of commits.
-- Protocol or codec changes go first to `eumarcodev/moonlight-common-c` or `eumarcodev/pyrowave` (PR to `master`), then a separate submodule bump PR here.
-- Releases: each merge to `develop` that changes more than Markdown/`docs/`/`.github/` (except `build.yml`)/`version.txt` publishes `vX.Y.Z-rc.N`. Stable = PR `develop` → `master`; its merge runs `stable-queue.yml` → `promote.yml`. After any merge, follow the run to the end before calling the work done.
+- Protocol or codec changes go first to `eumarcodev/moonlight-common-c` or `eumarcodev/pyrowave` (PR to their `develop`, then `develop` → `master`), then a separate submodule bump PR here.
+- Releases: each merge to `develop` that changes more than Markdown/`docs/`/`.github/` (except `build.yml`)/`version.txt` publishes `vX.Y.Z-rc.N`. Stable = PR `develop` → `master`; its merge runs `stable-queue.yml` → `promote.yml`, which opens a PR `chore: start X.Y+1.0 ...` that bumps `version.txt` on `develop`: merge it before the next merge into `develop`, or `rc-queue.yml` refuses the RC. After any merge, follow the run to the end before calling the work done.
 
 ## 5. Out of scope
 
 Do not change without being asked:
 - **Signing and Play publishing**: the `SELENE_KEYSTORE_FILE` signing setup, the `nonRoot_play` flavor, `play.yml` and the release workflows.
-- **`master`**: it only moves through the `develop` → `master` PR or `promote.yml`.
+- **`master`**: it only moves through the `develop` → `master` PR (the manual `promote.yml` fast-forward is rejected by the ruleset).
 - **Submodules** `third_party/pyrowave` and `app/src/main/jni/moonlight-core/moonlight-common-c`: never edit in place; change the fork, then bump.
 - **README lineage and credits** (Moonlight, Artemis, ClassicOldSong).
 - **The user's uncommitted state** in this checkout (modified `third_party/pyrowave` submodule, `.vscode/`, `local.properties`): do not commit, discard or stash it.

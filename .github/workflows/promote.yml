@@ -8,8 +8,10 @@ run-name: Stable release v${{ inputs.version }}
 #      selene-android-stable); only when that artifact is gone (expired after 90 days, or the job failed) it builds
 #      the RC's commit again with the stable version (the version is baked into the binaries)
 #   2. publishes vX.Y.Z as the latest release: at the merge commit on master when started by a merge (master must
-#      build the same as the RC), or, when run by hand, after fast-forwarding master to the RC's commit
-#   3. bumps version.txt on develop to the next minor version, so the next merge starts the next RC series
+#      build the same as the RC), or, when run by hand, after fast-forwarding master to the RC's commit (the
+#      "master-develop" ruleset now rejects that push: release by merging develop into master)
+#   3. opens a pull request that bumps version.txt on develop to the next minor version, so the next merge starts the
+#      next RC series (develop requires pull requests, see the bump job)
 # When the repository variable PLAY_PUBLISHING is "true", the release is also uploaded to the Google Play production
 # track (see .github/RELEASING.md, section "Google Play").
 on:
@@ -237,24 +239,29 @@ jobs:
       user-fraction: ${{ vars.PLAY_ROLLOUT }}
 
   bump:
-    name: Bump version.txt on develop
+    name: Open the version.txt bump for develop
     needs: [prepare, publish]
     # Explicit, because a skipped build upstream would otherwise skip this job too
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
     runs-on: ubuntu-latest
-    # The release is already out; a failure here only means version.txt has to be bumped by hand
+    # The release is already out; a failure here only means version.txt has to be bumped by hand (a PR into develop)
     continue-on-error: true
     permissions:
       contents: write
+      pull-requests: write
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout develop
         uses: actions/checkout@v7
         with:
           ref: develop
 
-      - name: Bump
+      # develop requires pull requests (repository ruleset "master-develop") and GITHUB_TOKEN cannot bypass it in a
+      # personal repository, so the bump goes through a pull request that the maintainer merges. Merge it before the
+      # next merge into develop, or that RC is numbered after the version just released and rc-queue.yml refuses it.
+      - name: Open the bump pull request
         run: |
           set -euo pipefail
           current=$(tr -d ' \r\n' < version.txt)
@@ -264,9 +271,19 @@ jobs:
           fi
           IFS=. read -r major minor _ <<< "${VERSION}"
           next="${major}.$((minor + 1)).0"
+          branch="feature/start-${next}"
+          title="chore: start ${next} after releasing v${VERSION}"
           echo "${next}" > version.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore: start ${next} after releasing v${VERSION}"
-          git push origin HEAD:develop
-          echo "version.txt on develop: ${next}" | tee -a "$GITHUB_STEP_SUMMARY"
+          git checkout -b "${branch}"
+          git commit -am "${title}"
+          # A rerun replaces the branch; it is never develop or master
+          git push --force origin "HEAD:refs/heads/${branch}"
+          url=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${branch}" --base develop --state open --json url --jq '.[0].url // ""')
+          if [[ -z "${url}" ]]; then
+            url=$(gh pr create --repo "${GITHUB_REPOSITORY}" --base develop --head "${branch}" --title "${title}" \
+              --body "Starts the ${next} RC series after the stable release v${VERSION}. Merge it before the next merge into develop; a version-only change queues no RC.")
+          fi
+          echo "::notice title=Bump pull request::${url}"
+          echo "version.txt on develop: ${next} in ${url} (merge it before the next merge into develop)" | tee -a "$GITHUB_STEP_SUMMARY"
