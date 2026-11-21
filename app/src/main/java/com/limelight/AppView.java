@@ -673,8 +673,8 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                 if (app.app.getAppUUID() == null || (app.app.getAppUUID() != null && app.app.getAppUUID().isEmpty())) {
                     UiHelper.displayConfirmationDialog(
                             AppView.this,
-                            getResources().getString(R.string.title_export_sunshine_launcher_file),
-                            getResources().getString(R.string.message_export_sunshine_launcher_file),
+                            getResources().getString(R.string.title_export_host_launcher_file),
+                            getResources().getString(R.string.message_export_host_launcher_file),
                             getResources().getString(R.string.proceed),
                             getResources().getString(R.string.cancel),
                             () -> shortcutHelper.exportLauncherFile(computer, app.app),

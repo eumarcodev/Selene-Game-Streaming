@@ -33,7 +33,7 @@
     <string name="pair_pc_offline">מחשב לא פעיל</string>
     <string name="pair_pairing_title">מחבר</string>
     <string name="pair_pairing_msg">אנא הזן את הקוד PIN הבא במחשב המארח:</string>
-    <string name="pair_pairing_help">אם המחשב המארח פועל על Sunshine, נווט אל דף הניהול על מנת להזין קוד PIN.</string>
+    <string name="pair_pairing_help">אם המחשב המארח פועל על Helios, נווט אל דף הניהול על מנת להזין קוד PIN.</string>
     <string name="pair_incorrect_pin">קוד PIN שגוי</string>
     <string name="pair_fail">חיבור נכשל</string>
     <string name="wol_pc_online">מחשב פעיל</string>
@@ -153,4 +153,4 @@
     <string name="title_checkbox_touchscreen_trackpad">השתמש במסך מגע כמשטח מגע</string>
     <string name="title_enable_commit_text">הפעל קלט commit-text (החלקה/קול)</string>
     <string name="summary_enable_commit_text">מעביר טקסט מרובה תווים ממקלדות וירטואליות (החלקה, הצעות, הקלדה קולית). עלול לגרום בעיות במשחקים שמסתמכים על קלט לפי מקש.</string>
-</resources>
+</resources>

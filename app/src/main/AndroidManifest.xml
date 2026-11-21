@@ -44,7 +44,7 @@
         android:required="false"/>
 
     <application
-        android:name=".ArtemisApplication"
+        android:name=".SeleneApplication"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/backup_rules_s"
@@ -271,4 +271,4 @@
 
     </application>
 
-</manifest>
+</manifest>

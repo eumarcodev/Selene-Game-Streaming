@@ -54,9 +54,9 @@
 	<string name="pair_pc_ingame">電腦目前正在執行遊戲，必須先關閉遊戲才能配對。</string>
 	<string name="pair_pairing_title">正在配對</string>
 	<string name="pair_pairing_msg">請在目標電腦上輸入以下 PIN：</string>
-	<string name="pair_pairing_help">如果您的主機電腦正在執行 Sunshine，請進入 Sunshine 的網頁介面輸入 PIN。</string>
+	<string name="pair_pairing_help">如果您的主機電腦正在執行 Helios，請進入 Helios 的網頁介面輸入 PIN。</string>
 	<string name="pair_otp_pairing_msg">正在進行配對，請稍候…</string>
-	<string name="pair_otp_pairing_help">OTP 配對僅適用於 Apollo，如果您使用其他主機軟體，請在網頁介面手動輸入剛剛提供的 PIN。</string>
+	<string name="pair_otp_pairing_help">OTP 配對僅適用於 Helios，如果您使用其他主機軟體，請在網頁介面手動輸入剛剛提供的 PIN。</string>
 	<string name="pair_incorrect_pin">PIN 或密碼短語錯誤</string>
 	<string name="pair_fail">配對失敗</string>
 	<string name="pair_already_in_progress">配對已在進行中</string>
@@ -116,7 +116,7 @@
 	<!-- General strings -->
 	<string name="ip_hint">主機電腦的 IP 位址</string>
 	<string name="searching_pc">正在搜尋您區域網路中的主機電腦…\n\n
-		請確認 Apollo 已在主機電腦上執行。</string>
+		請確認 Helios 已在主機電腦上執行。</string>
 	<string name="yes">是</string>
 	<string name="no">否</string>
 	<string name="lost_connection">與電腦的連線中斷</string>
@@ -143,7 +143,7 @@
 	</string>
 
 	<string name="email_recipient">artemistics.logs@gmail.com</string>
-	<string name="email_subject">Artemistics - 效能日誌</string>
+	<string name="email_subject">Selenetics - 效能日誌</string>
 	<string name="email_chooser_title">傳送效能日誌...</string>
 	<string name="toast_no_email_clients">未安裝電子郵件用戶端。</string>
 	<string name="toast_no_logs">尚未儲存任何效能數據。</string>
@@ -197,7 +197,7 @@
 	<string name="summary_seekbar_metered_bitrate">較高的位元率會消耗更多數據，較低的位元率可改善在計量網路下的流暢度。\n設定為 0 時，位元率為上述設定的 1/4。</string>
 	<string name="suffix_seekbar_bitrate_mbps">Mbps</string>
 	<string name="title_resolution_scale_factor">解析度縮放係數</string>
-	<string name="summary_resolution_scale_factor">伺服器端請求的虛擬螢幕解析度將乘以此係數。串流解析度不受影響。\n例如：120% 會將 2000x1000 變為 2400x1200。\n設定較高的縮放係數可改善部分遊戲的影像品質。\n需要 Apollo 才能生效。</string>
+	<string name="summary_resolution_scale_factor">伺服器端請求的虛擬螢幕解析度將乘以此係數。串流解析度不受影響。\n例如：120% 會將 2000x1000 變為 2400x1200。\n設定較高的縮放係數可改善部分遊戲的影像品質。\n需要 Helios 才能生效。</string>
 	<string name="resolution_prefix_native">原生</string>
 	<string name="resolution_prefix_native_fullscreen">原生全螢幕</string>
 	<string name="resolution_prefix_native_landscape">（橫向）</string>
@@ -433,7 +433,7 @@
 	<string name="dialog_manual_enter_bitrate">請以 Mbps 輸入位元率。四捨五入到 0.5。</string>
 
 	<string name="title_custom_refresh_rate">自訂更新率</string>
-	<string name="summary_custom_refresh_rate">手動輸入更新率。僅支援 Apollo。</string>
+	<string name="summary_custom_refresh_rate">手動輸入更新率。僅支援 Helios。</string>
 	<string name="dialog_custom_refresh_rate">請以 Hz 輸入更新率。可為小數。</string>
 
 	<string name="title_render_mode">渲染模式</string>
@@ -584,7 +584,7 @@
 	<string name="summary_ignore_synth_events">忽略 Android 系統發送的合成事件。可解決部分裝置上滑鼠點擊觸發其他意外按鍵的問題。\n啟用後，系統軟體鍵盤將無法使用。</string>
 
 	<string name="title_smart_clipboard_sync">智慧剪貼簿同步（實驗性）</string>
-	<string name="summary_smart_clipboard_sync">串流開始/恢復時自動上傳剪貼簿內容至伺服器；失去焦點時自伺服器下載（需搭配 Apollo）。</string>
+	<string name="summary_smart_clipboard_sync">串流開始/恢復時自動上傳剪貼簿內容至伺服器；失去焦點時自伺服器下載（需搭配 Helios）。</string>
 	<string name="title_smart_clipboard_sync_toast">剪貼簿同步提示</string>
 	<string name="summary_smart_clipboard_sync_toast">顯示剪貼簿同步結果的提示訊息</string>
 	<string name="title_hide_clipboard_content">隱藏剪貼簿內容</string>
@@ -609,7 +609,7 @@
 	<string name="summary_checkbox_forceTightThresholds">更緊的 VSync 門檻以降低延遲；可能增加掉幀。</string>
 
 	<string name="title_checkbox_use_virtual_display">使用虛擬顯示器</string>
-	<string name="summary_checkbox_use_virtual_display">預設使用虛擬顯示器。\n虛擬顯示器可自動匹配用戶端解析度與幀率設定，帶來無縫的串流體驗。\n需要 Apollo 作為主機串流軟體。</string>
+	<string name="summary_checkbox_use_virtual_display">預設使用虛擬顯示器。\n虛擬顯示器可自動匹配用戶端解析度與幀率設定，帶來無縫的串流體驗。\n需要 Helios 作為主機串流軟體。</string>
 
 	<string name="title_checkbox_resume_without_confirm">快速繼續</string>
 	<string name="summary_checkbox_resume_without_confirm">按下繼續按鈕時不顯示選單，直接繼續應用程式。</string>
@@ -683,11 +683,11 @@
 	<string name="game_menu_fetch_clipboard">取得剪貼簿</string>
 	<string name="game_menu_upload_clipboard">上傳剪貼簿</string>
 	<string name="game_dialog_title_server_cmd_empty">無伺服器指令</string>
-	<string name="game_dialog_message_server_cmd_empty">請確認您使用的是 Apollo 作為伺服器軟體，且已授予此客戶端「伺服器指令」權限。</string>
+	<string name="game_dialog_message_server_cmd_empty">請確認您使用的是 Helios 作為伺服器軟體，且已授予此客戶端「伺服器指令」權限。</string>
 
 	<string name="vdisplay_not_ready">伺服器上的虛擬顯示器驅動尚未就緒。請確認已安裝並啟用 SudoVDA 驅動程式。</string>
-	<string name="vdisplay_not_supported"><![CDATA[此伺服器不支援虛擬顯示器。請使用 <a href="https://github.com/ClassicOldSong/Apollo">Apollo</a> 作為主機串流軟體。]]></string>
-	<string name="clipboard_sync_unsupported">此伺服器不支援剪貼簿同步。請安裝或將伺服器升級至最新版本的 Apollo。</string>
+	<string name="vdisplay_not_supported"><![CDATA[此伺服器不支援虛擬顯示器。請使用 <a href="https://github.com/eumarcodev/Helios-Server">Helios</a> 作為主機串流軟體。]]></string>
+	<string name="clipboard_sync_unsupported">此伺服器不支援剪貼簿同步。請安裝或將伺服器升級至最新版本的 Helios。</string>
 	<string name="send_clipboard_failed">傳送剪貼簿失敗： </string>
 
 	<string name="external_display_info">外接顯示器連接：%1$dx%2$d，%3$.1fHz</string>
@@ -748,8 +748,8 @@
 	<!-- AppView Toast Messages -->
 	<string name="file_export_cancelled">已取消匯出。</string>
 	<string name="app_removed_from_pc">已自電腦移除應用程式</string>
-	<string name="title_export_sunshine_launcher_file">為 Sunshine 匯出啟動檔</string>
-	<string name="message_export_sunshine_launcher_file">為 Sunshine 匯出啟動檔不夠穩定，可能隨時失效。每次變更應用程式名稱或圖片後都需要重新匯出。\n欲獲得更穩定體驗，請使用 Apollo。</string>
+	<string name="title_export_host_launcher_file">為 Helios 匯出啟動檔</string>
+	<string name="message_export_host_launcher_file">為 Helios 匯出啟動檔不夠穩定，可能隨時失效。每次變更應用程式名稱或圖片後都需要重新匯出。\n欲獲得更穩定體驗，請使用 Helios。</string>
 
 	<string name="title_enable_commit_text">啟用 commit-text 輸入（滑動/語音）</string>
 	<string name="summary_enable_commit_text">將軟體鍵盤的多字元輸入（手勢輸入、建議字詞、語音聽寫）轉送到主機。可能會影響依賴逐鍵輸入的遊戲。</string>

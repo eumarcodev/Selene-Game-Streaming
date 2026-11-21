@@ -345,4 +345,4 @@
     <string name="pw_event_okay">Conexão normalizada</string>
     <string name="pw_event_terminated">Conexão encerrada (erro %1$d)</string>
     <string name="pw_event_stage_failed">%1$s falhou (erro %2$d)</string>
-</resources>
+</resources>

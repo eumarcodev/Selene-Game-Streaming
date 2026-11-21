@@ -136,7 +136,7 @@ android {
         }
         release {
             // Selene Game Streaming has its own application id (com.eumarcodev.selene), so it does not
-            // collide with Moonlight, Artemis or any other fork. Forks of this project must change it.
+            // collide with Moonlight or any other fork. Forks of this project must change it.
             resValue "string", "app_label", "Selene Game Streaming"
             resValue "string", "app_label_root", "Selene Game Streaming (Root)"
             resValue "string", "app_label_game", "Selene Game Streaming (Game)"
