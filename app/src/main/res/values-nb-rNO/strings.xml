@@ -209,4 +209,4 @@
     <string name="perf_overlay_streamdetails">Videostrøm: %1$s %2$.2f BPS</string>
     <string name="title_enable_commit_text">Aktiver commit-tekst-input (sveip/stemme)</string>
     <string name="summary_enable_commit_text">Sender tekst med flere tegn fra skjermtastaturet (gesture-skriving, forslag, stemmediktat). Kan skape problemer i spill som krever tast-for-tast-inndata.</string>
-</resources>
+</resources>

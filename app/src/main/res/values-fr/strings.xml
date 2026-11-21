@@ -49,9 +49,9 @@
     <string name="pair_pc_ingame">L\'ordinateur est actuellement dans un jeu. Vous devez fermer le jeu avant l\'appairage.</string>
     <string name="pair_pairing_title">Appariement</string>
     <string name="pair_pairing_msg">Veuillez entrer le code PIN suivant sur le PC cible :</string>
-    <string name="pair_pairing_help">Si votre PC hôte utilise Sunshine, accédez à l\'interface web de Sunshine pour saisir le code PIN.</string>
+    <string name="pair_pairing_help">Si votre PC hôte utilise Helios, accédez à l\'interface web de Helios pour saisir le code PIN.</string>
     <string name="pair_otp_pairing_msg">Appariement, veuillez patienter…</string>
-    <string name="pair_otp_pairing_help">L\'appariement OTP n\'est disponible qu\'avec Apollo, entrez manuellement le code PIN que vous venez de fournir sur l\'interface web si vous utilisez un autre logiciel hôte.</string>
+    <string name="pair_otp_pairing_help">L\'appariement OTP n\'est disponible qu\'avec Helios, entrez manuellement le code PIN que vous venez de fournir sur l\'interface web si vous utilisez un autre logiciel hôte.</string>
     <string name="pair_incorrect_pin">Code PIN ou phrase secrète incorrect</string>
     <string name="pair_fail">Échec de l\'appariement</string>
     <string name="pair_already_in_progress">Appariement déjà en cours</string>
@@ -105,7 +105,7 @@
 
     <!-- General strings -->
     <string name="ip_hint">Adresse IP du PC hôte</string>
-    <string name="searching_pc">Recherche de PC hôtes sur votre réseau local…\n\nAssurez-vous que Sunshine est en cours d\'exécution ou que GameStream est activé dans les paramètres GeForce Experience SHIELD.</string>
+    <string name="searching_pc">Recherche de PC hôtes sur votre réseau local…\n\nAssurez-vous que Helios est en cours d\'exécution ou que GameStream est activé dans les paramètres GeForce Experience SHIELD.</string>
     <string name="yes">Oui</string>
     <string name="no">Non</string>
     <string name="lost_connection">Connexion perdue avec le PC</string>
@@ -171,7 +171,7 @@
     <string name="summary_seekbar_metered_bitrate">Un débit élevé consomme plus de données, un débit plus faible améliore la fluidité sur les réseaux limités.\nDéfinissez sur 0 pour ¼ de la valeur ci-dessus.</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>
     <string name="title_resolution_scale_factor">Facteur d\'échelle de la résolution</string>
-    <string name="summary_resolution_scale_factor">La résolution de l\'écran virtuel demandée côté serveur sera multipliée par ce facteur. Le streaming résolution ne sera pas affecté.\nPar exemple, 120 % transformera 2000x1000 en 2400x1200.\nL\'utilisation d\'un facteur d\'échelle plus élevé améliorera la qualité de l\'image pour certains jeux.\nNécessite Apollo pour prendre effet.</string>
+    <string name="summary_resolution_scale_factor">La résolution de l\'écran virtuel demandée côté serveur sera multipliée par ce facteur. Le streaming résolution ne sera pas affecté.\nPar exemple, 120 % transformera 2000x1000 en 2400x1200.\nL\'utilisation d\'un facteur d\'échelle plus élevé améliorera la qualité de l\'image pour certains jeux.\nNécessite Helios pour prendre effet.</string>
     <string name="resolution_prefix_native">Native</string>
     <string name="resolution_prefix_native_fullscreen">Plein-écran natif</string>
     <string name="resolution_prefix_native_landscape">(Paysage)</string>
@@ -384,7 +384,7 @@
     <string name="summary_manual_enter_bitrate">Entrez le débit manuellement.\nPeut dépasser la plage maximale de la barre de défilement.</string>
     <string name="dialog_manual_enter_bitrate">Entrez le débit en Mbps. Arrondir à 0,5.</string>
     <string name="title_custom_refresh_rate">Taux de rafraîchissement personnalisé</string>
-    <string name="summary_custom_refresh_rate">Entrez le taux de rafraîchissement manuellement. Seulement pris en charge par Apollo.</string>
+    <string name="summary_custom_refresh_rate">Entrez le taux de rafraîchissement manuellement. Seulement pris en charge par Helios.</string>
     <string name="dialog_custom_refresh_rate">Entrez le taux de rafraîchissement en Hz. Peut être fractionnaire.</string>
     <string name="title_touchscreen_mode">Mode de l\'écran tactile</string>
     <string name="summary_touchscreen_mode">Choisissez entre les modes MultiTouch/SingleTouch/Trackpad/Désactivé.\nLe stylet/stylo sont toujours utilisables lorsque le mode Désactivé est sélectionné.\nForcé en mode Track Pad(Natural) lors de l\'utilisation d\'un affichage externe.</string>
@@ -476,7 +476,7 @@
     <string name="title_checkbox_ignore_synth_events">Ignorer les événements synthétiques</string>
     <string name="summary_ignore_synth_events">Ignore les événements synthétiques envoyés par le système Android. Cela peut résoudre les problèmes où les clics de souris déclenchent d\'autres touches inattendues sur certains appareils.\nL\'activation de cette option empêchera le clavier logiciel du système de fonctionner.</string>
     <string name="title_smart_clipboard_sync">Synchronisation intelligente du presse-papiers (expérimental)</string>
-    <string name="summary_smart_clipboard_sync">Télécharger automatiquement le contenu du presse-papiers vers le serveur au démarrage/reprise du flux, télécharger le presse-papiers depuis le serveur lors de la perte de focus (nécessite Apollo).</string>
+    <string name="summary_smart_clipboard_sync">Télécharger automatiquement le contenu du presse-papiers vers le serveur au démarrage/reprise du flux, télécharger le presse-papiers depuis le serveur lors de la perte de focus (nécessite Helios).</string>
     <string name="title_smart_clipboard_sync_toast">Toast de synchronisation du presse-papiers</string>
     <string name="summary_smart_clipboard_sync_toast">Afficher un toast pour le résultat de la synchronisation du presse-papiers</string>
     <string name="title_hide_clipboard_content">Masquer le contenu du presse-papiers</string>
@@ -494,7 +494,7 @@
     <string name="title_checkbox_ultra_low_latency">Latence ultra faible (expérimental)</string>
     <string name="summary_checkbox_ultra_low_latency">Efficace uniquement pour SD8Gen2/8(s)Gen3/8Elite.</string>
     <string name="title_checkbox_use_virtual_display">Utiliser l\'affichage virtuel</string>
-    <string name="summary_checkbox_use_virtual_display">Utiliser l\'affichage virtuel par défaut.\nL\'affichage virtuel peut correspondre automatiquement à la résolution et au taux de rafraîchissement de votre appareil, offrant une expérience de streaming fluide.\nNécessite Apollo comme logiciel de streaming hôte.</string>
+    <string name="summary_checkbox_use_virtual_display">Utiliser l\'affichage virtuel par défaut.\nL\'affichage virtuel peut correspondre automatiquement à la résolution et au taux de rafraîchissement de votre appareil, offrant une expérience de streaming fluide.\nNécessite Helios comme logiciel de streaming hôte.</string>
     <string name="title_checkbox_resume_without_confirm">Reprise rapide</string>
     <string name="summary_checkbox_resume_without_confirm">Ne pas afficher le menu de reprise lors du clic sur le bouton de reprise, reprendre l\'application immédiatement.</string>
     <string name="title_checkbox_enable_sticky_modifier_key_virtual_keyboard">Touches modificatrices adhésives</string>
@@ -556,10 +556,10 @@
     <string name="game_menu_fetch_clipboard">Récupérer le presse-papiers</string>
     <string name="game_menu_upload_clipboard">Télécharger le presse-papiers</string>
     <string name="game_dialog_title_server_cmd_empty">Aucune commande de serveur</string>
-    <string name="game_dialog_message_server_cmd_empty">Veuillez vous assurer que vous utilisez Apollo comme logiciel serveur et que vous avez accordé à ce client l\'autorisation "Commande de serveur".</string>
+    <string name="game_dialog_message_server_cmd_empty">Veuillez vous assurer que vous utilisez Helios comme logiciel serveur et que vous avez accordé à ce client l\'autorisation "Commande de serveur".</string>
     <string name="vdisplay_not_ready">Le pilote d\'affichage virtuel n\'est pas prêt sur le serveur. Veuillez vous assurer que le pilote SudoVDA est installé et activé.</string>
-    <string name="vdisplay_not_supported"><![CDATA[L\'affichage virtuel n\'est pas pris en charge sur ce serveur. Veuillez utiliser <a href=\"https://github.com/ClassicOldSong/Apollo\">Apollo</a> comme logiciel de streaming hôte.]]></string>
-    <string name="clipboard_sync_unsupported">Ce serveur ne prend pas en charge la synchronisation du presse-papiers. Veuillez installer ou mettre à jour votre serveur vers la dernière version d\'Apollo.</string>
+    <string name="vdisplay_not_supported"><![CDATA[L\'affichage virtuel n\'est pas pris en charge sur ce serveur. Veuillez utiliser <a href=\"https://github.com/eumarcodev/Helios-Server\">Helios</a> comme logiciel de streaming hôte.]]></string>
+    <string name="clipboard_sync_unsupported">Ce serveur ne prend pas en charge la synchronisation du presse-papiers. Veuillez installer ou mettre à jour votre serveur vers la dernière version d\'Helios.</string>
     <string name="send_clipboard_failed">Échec de l\'envoi du presse-papiers : </string>
     <string name="get_clipboard_failed">Échec de la récupération du presse-papiers : </string>
     <string name="send_clipboard_success">Presse-papiers envoyé avec succès</string>

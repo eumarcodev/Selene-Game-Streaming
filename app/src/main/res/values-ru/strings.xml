@@ -24,7 +24,7 @@
     <string name="pair_pc_ingame">Компьютер в данный момент находится в игре. Вы должны закрыть игру перед сопряжением.</string>
     <string name="pair_pairing_title">Сопряжение</string>
     <string name="pair_pairing_msg">Пожалуйста введите этот PIN на целевом ПК:</string>
-    <string name="pair_otp_pairing_help">Сопряжение по OTP доступно только с Apollo. При использовании другого ПО введите PIN вручную в веб-интерфейсе.</string>
+    <string name="pair_otp_pairing_help">Сопряжение по OTP доступно только с Helios. При использовании другого ПО введите PIN вручную в веб-интерфейсе.</string>
     <string name="pair_incorrect_pin">Неправильный PIN</string>
     <string name="pair_fail">Сопряжение не удалось</string>
     <!-- WOL messages -->
@@ -60,7 +60,7 @@
     <string name="ip_hint">IP-адрес хост-ПК</string>
     <string name="searching_pc">Поиск хост-ПК в вашей локальной сети…
 \n
-\n Убедитесь, что Sunshine работает на вашем хост-компьютере или GameStream включен в настройках GeForce Experience SHIELD.</string>
+\n Убедитесь, что Helios работает на вашем хост-компьютере или GameStream включен в настройках GeForce Experience SHIELD.</string>
     <string name="yes">Да</string>
     <string name="no">Нет</string>
     <string name="lost_connection">Потеряно соединение с ПК</string>
@@ -219,7 +219,7 @@
     <string name="no_frame_received_error">Ваше сетевое подключение не справляется с заданными настройками. Попробуйте изменить битрейт или использовать более быстрое подключение.</string>
     <string name="no_video_received_error">Видео от хоста не получено.</string>
     <string name="nettest_text_blocked">Текущее сетевое соединение вашего устройства блокирует Selene. Потоковая передача через Интернет может не работать при подключении к этой сети.</string>
-    <string name="summary_resolution_scale_factor">Запрашиваемое на сервере виртуальное разрешение экрана будет умножено на этот коэффициент. Разрешение стрима не изменяется.\nПример: 120% превратит 2000×1000 в 2400×1200.\nПовышение коэффициента может улучшить качество изображения в некоторых играх.\nТребуется Apollo для применения.</string>
+    <string name="summary_resolution_scale_factor">Запрашиваемое на сервере виртуальное разрешение экрана будет умножено на этот коэффициент. Разрешение стрима не изменяется.\nПример: 120% превратит 2000×1000 в 2400×1200.\nПовышение коэффициента может улучшить качество изображения в некоторых играх.\nТребуется Helios для применения.</string>
     <string name="resolution_prefix_native">Нативное</string>
     <string name="text_native_res_dialog">Режимы родного разрешения официально не поддерживаются GeForce Experience, поэтому он не будет устанавливать разрешение экрана вашего хоста самостоятельно. Вам нужно будет установить его вручную.
 \n
@@ -289,7 +289,7 @@
     <string name="pan_zoom_mode_disabled">Режим прокрутки/масш. выключен</string>
     <string name="title_analog_scrolling">Использовать аналоговый джойстик для прокрутки</string>
     <string name="analogscroll_right">Правый аналоговый джойстик</string>
-    <string name="pair_pairing_help">Если на вашем хост-ПК установлен Sunshine, перейдите в веб-интерфейс Sunshine и введите PIN-код.</string>
+    <string name="pair_pairing_help">Если на вашем хост-ПК установлен Helios, перейдите в веб-интерфейс Helios и введите PIN-код.</string>
     <string name="error_code_prefix">Код ошибки:</string>
     <string name="perf_overlay_hostprocessinglatency">Задержка обработки хоста мин/макс/среднее: %1$.1f/%2$.1f/%3$.1f мс</string>
     <string name="summary_seekbar_vibrate_fallback_strength">Увеличьте или уменьшите интенсивность вибрации на вашем устройстве</string>
@@ -305,7 +305,7 @@
     <string name="analogscroll_none">Нет (оба джойстика перемещают мышь)</string>
     <string name="analogscroll_left">Левый аналоговый джойстик</string>
     <string name="pcview_menu_eol">NVIDIA GameStream обслуживание окончено</string>
-    <string name="message_export_sunshine_launcher_file">Экспорт лаунчера для Sunshine нестабилен и может ломаться. При изменении имени или картинки экспорт придётся делать заново.\nДля стабильности используйте Apollo.</string>
+    <string name="message_export_host_launcher_file">Экспорт лаунчера для Helios нестабилен и может ломаться. При изменении имени или картинки экспорт придётся делать заново.\nДля стабильности используйте Helios.</string>
     <string name="title_enable_commit_text">Включить передачу готового текста (свайп/голос)</string>
     <string name="summary_enable_commit_text">Передаёт на ПК многосимвольный текст из экранных клавиатур (жестовый ввод, подсказки, голосовой ввод). Может нарушить работу игр, ожидающих посимвольного ввода.</string>
     <string name="menu_button">Меню</string>
@@ -320,7 +320,7 @@
     <string name="pair_otp_pairing_msg">Сопряжение, подождите…</string>
     <string name="pair_passphrase_hint">Пароль</string>
     <string name="pair_pin_length_msg">PIN должен состоять из 4 цифр</string>
-    <string name="email_subject">Artemistics - журнал производительности</string>
+    <string name="email_subject">Selenetics - журнал производительности</string>
     <string name="email_chooser_title">Отправить журнал производительности...</string>
     <string name="toast_no_email_clients">Почтовые клиенты не установлены.</string>
     <string name="applist_menu_start_vdisplay">Запустить в виртуальном дисплее</string>
@@ -378,7 +378,7 @@
     <string name="summary_manual_enter_bitrate">Ввести битрейт вручную.\nМожет превышать пределы ползунка.</string>
     <string name="dialog_manual_enter_bitrate">Введите битрейт в Мбит/с. Округлять до 0.5.</string>
     <string name="title_custom_refresh_rate">Пользовательская частота обновления</string>
-    <string name="summary_custom_refresh_rate">Введите частоту вручную. Поддерживается только Apollo.</string>
+    <string name="summary_custom_refresh_rate">Введите частоту вручную. Поддерживается только Helios.</string>
     <string name="dialog_custom_refresh_rate">Введите частоту в Гц. Может быть дробной.</string>
     <string name="title_render_mode_strength_description">Справка: 50 - Выше значение: эффект выраженнее, но возможна нагрузка на глаза и неестественное изображение. Ниже значение: комфорт для глаз и более плавное восприятие.</string>
     <string name="title_touchscreen_mode">Режим сенсора</string>
@@ -484,7 +484,7 @@
     <string name="title_checkbox_ignore_synth_events">Игнорировать синтетические события</string>
     <string name="summary_ignore_synth_events">Игнорировать синтетические события, отправляемые системой Android. Это может решить проблему, когда щелчки мыши вызывают другие неожиданные клавиши на некоторых устройствах.\nВключение этой опции приведёт к тому, что экранная клавиатура системы перестанет работать.</string>
     <string name="title_smart_clipboard_sync">Умная синхронизация буфера (экспериментально)</string>
-    <string name="summary_smart_clipboard_sync">Автоматически загружать буфер на сервер при старте/возобновлении и скачивать при потере фокуса (требуется Apollo)</string>
+    <string name="summary_smart_clipboard_sync">Автоматически загружать буфер на сервер при старте/возобновлении и скачивать при потере фокуса (требуется Helios)</string>
     <string name="title_smart_clipboard_sync_toast">Уведомление о синхронизации буфера</string>
     <string name="summary_smart_clipboard_sync_toast">Показать уведомление о результате синхронизации буфера</string>
     <string name="title_hide_clipboard_content">Скрывать содержимое буфера</string>
@@ -502,7 +502,7 @@
     <string name="summary_checkbox_ultra_low_latency">Эффективно только на SD8Gen2 / 8(s)Gen3 / 8Elite</string>
     <string name="summary_checkbox_forceTightThresholds">Более строгие пороги вертикальной синхронизации для снижения задержки; может увеличить количество сбоев.</string>
     <string name="title_checkbox_use_virtual_display">Использовать виртуальный дисплей</string>
-    <string name="summary_checkbox_use_virtual_display">Использовать виртуальный дисплей по умолчанию.\nВиртуальный дисплей автоматически подбирает клиентское разрешение и частоту, обеспечивая плавный стрим.\nТребует Apollo на хосте.</string>
+    <string name="summary_checkbox_use_virtual_display">Использовать виртуальный дисплей по умолчанию.\nВиртуальный дисплей автоматически подбирает клиентское разрешение и частоту, обеспечивая плавный стрим.\nТребует Helios на хосте.</string>
     <string name="title_checkbox_resume_without_confirm">Быстрое возобновление</string>
     <string name="summary_checkbox_resume_without_confirm">Не показывать меню возобновления, сразу возобновлять приложение.</string>
     <string name="title_checkbox_enable_sticky_modifier_key_virtual_keyboard">Фиксированные модификаторы</string>
@@ -564,9 +564,9 @@
     <string name="game_menu_fetch_clipboard">Получить буфер обмена</string>
     <string name="game_menu_upload_clipboard">Отправить буфер обмена</string>
     <string name="game_dialog_title_server_cmd_empty">Нет команд сервера</string>
-    <string name="game_dialog_message_server_cmd_empty">Убедитесь, что на сервере установлен Apollo и этому клиенту предоставлено разрешение Server Command.</string>
+    <string name="game_dialog_message_server_cmd_empty">Убедитесь, что на сервере установлен Helios и этому клиенту предоставлено разрешение Server Command.</string>
     <string name="vdisplay_not_ready">Виртуальный драйвер дисплея на сервере не готов. Пожалуйста, убедитесь, что драйвер SudoVDA установлен и включён.</string>
-    <string name="clipboard_sync_unsupported">Этот сервер не поддерживает синхронизацию буфера. Установите или обновите сервер до последней версии Apollo.</string>
+    <string name="clipboard_sync_unsupported">Этот сервер не поддерживает синхронизацию буфера. Установите или обновите сервер до последней версии Helios.</string>
     <string name="send_clipboard_failed">Не удалось отправить буфер обмена:</string>
     <string name="external_display_info">Внешний дисплей подключён с: %1$dx%2$d при %3$.1fГц</string>
     <string name="notification_channel_name">Управление внешним дисплеем</string>
@@ -612,7 +612,7 @@
     <string name="unexpected_error_during_file_export">При экспорте произошла непредвиденная ошибка.</string>
     <string name="file_export_cancelled">Экспорт отменён.</string>
     <string name="app_removed_from_pc">Приложение удалено с ПК</string>
-    <string name="title_export_sunshine_launcher_file">Экспорт файла запуска для Sunshine</string>
+    <string name="title_export_host_launcher_file">Экспорт файла запуска для Helios</string>
     <string name="title_checkbox_remember_zoom_pan">Запоминать прокрутку/масш.</string>
     <string name="summary_checkbox_remember_zoom_pan">Сохранять масштаб и позицию между сессиями</string>
     <string name="title_checkbox_enable_perf_overlay_bottom">Переместить панель вниз</string>
@@ -674,4 +674,4 @@
     <string name="render_mode_2d">По умолчанию 2D</string>
     <string name="title_checkbox_full_screen">Включить полноэкранный режим</string>
     <string name="summary_checkbox_full_screen">Скрывать системные панели в режиме погружения</string>
-</resources>
+</resources>
