@@ -308,7 +308,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private static final int SETUP_SETTLE_SECONDS = 3;
     private int setupSeconds;
 
-    public static final String CLIPBOARD_IDENTIFIER = "ArtemisStreaming";
+    public static final String CLIPBOARD_IDENTIFIER = "SeleneStreaming";
 
     private String appUUID;
     private String host;

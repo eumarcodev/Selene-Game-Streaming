@@ -6,13 +6,13 @@
 
 Selene Game Streaming is an open source Android client that streams games and the desktop of a Windows PC to an
 Android device, at home or over the internet. It is made for the [Helios](https://github.com/eumarcodev/Helios-Server)
-host and also works with other GameStream-compatible hosts such as [Sunshine](https://github.com/LizardByte/Sunshine).
+host and also works with other GameStream-compatible hosts.
 
-It keeps the client features of Artemis: custom resolutions, bitrates and virtual buttons, several mouse and touchpad
+Its client features include custom resolutions, bitrates and virtual buttons, several mouse and touchpad
 modes, external monitor and portrait modes, video scale and pan/zoom, and, with Helios, virtual display control,
 server commands and clipboard sync.
 
-Selene uses its own application id (`com.eumarcodev.selene`), so it installs next to Artemis and Moonlight and does not
+Selene uses its own application id (`com.eumarcodev.selene`), so it installs next to Moonlight and other forks and does not
 reuse their settings or pairings. Downloads: [Releases](https://github.com/eumarcodev/Selene-Game-Streaming/releases)
 (one APK per processor type; `arm64-v8a` fits almost every device).
 

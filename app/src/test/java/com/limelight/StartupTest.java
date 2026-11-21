@@ -50,8 +50,8 @@ public class StartupTest {
 
     @Test
     public void testApplicationStartup() {
-        // Test ArtemisApplication creation and initialization
-        ArtemisApplication app = new ArtemisApplication();
+        // Test SeleneApplication creation and initialization
+        SeleneApplication app = new SeleneApplication();
         app.onCreate();
 
         // Verify ProfilesManager was initialized
